@@ -118,9 +118,9 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
             for ch, i in combs[sq]:
                 for ch2, j in combs[sq]:
                     separation_length = abs(ch - ch2)
-                    if separation_length == 1:
+                    if separation_length == 0:
                         cross_matrix[i,j] = 1
-                    elif separation_length > 1 and separation_length <= radius:
+                    elif separation_length > 0 and separation_length <= radius:
                         cross_matrix[i,j]= cross_amp[i]/separation_length**beta
 
         tsout = np.dot(cross_matrix,tsout)
