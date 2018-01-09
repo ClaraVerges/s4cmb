@@ -1,8 +1,4 @@
 #!/usr/bin/python
-
-clara
-
-
 """
 Module to handle instrument systematics.
 
@@ -115,14 +111,29 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
     state = np.random.RandomState(seed)
     cross_amp = state.normal(mu, sigma, len(bolo_data))
 
+    cross_matrix=np.zeros((len(bolo_data),len(bolo_data)))
+
     if language == 'python':
         for sq in combs:
             for ch, i in combs[sq]:
-                for ch2, i2 in combs[sq]:
+                for ch2, j in combs[sq]:
                     separation_length = abs(ch - ch2)
-                    if separation_length > 0 and separation_length <= radius:
-                        tsout[i] += cross_amp[i2] / \
-                            separation_length**beta * tsout[i2]
+                    if separation_length == 1:
+                        cross_matrix[i,j] = 1
+                    elif separation_length > 1 and separation_length <= radius:
+                        cross_matrix[i,j]= cross_amp[i]/separation_length**beta
+
+        tsout = np.dot(cross_matrix,tsout)
+
+    #
+    # if language == 'python':
+    #     for sq in combs:
+    #         for ch, i in combs[sq]:
+    #             for ch2, i2 in combs[sq]:
+    #                 separation_length = abs(ch - ch2)
+    #                 if separation_length > 0 and separation_length <= radius:
+    #                     tsout[i] += cross_amp[i2] / \
+    #                         separation_length**beta * tsout[i2]
 
     elif language == 'fortran':
         ## F2PY convention
