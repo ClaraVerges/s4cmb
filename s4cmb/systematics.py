@@ -17,13 +17,16 @@ arcmin2rad = np.pi / 180. / 60.
 deg2rad = np.pi / 180.
 
 def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
-                                  mu=-3., sigma=1., radius=1, beta=2,
+                                  mu=-1., sigma = 1., R = 0.75, delta_f = 75000., L = 15.8 , radius=1, beta=2,
                                   seed=5438765, new_array=None,
-                                  language='python'):
+                                  language='python',instrument_model=False):
     """
     Introduce leakage between neighboring bolometers within a SQUID.
     You have to provide the list of bolometers, to which SQUID they
     belong, and the index of bolometers within each SQUID.
+
+    You can provide either directly mu, the mean of the Gaussian (default)
+    OR R, delta_f and L to generate mu from instrument parameters and set instrument_model=True
 
     Parameters
     ----------
@@ -39,6 +42,12 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
         Mean of the Gaussian used to generate the level of leakage,
         in percent. E.g. mu=1.0 means the leakage coefficients will be
         centred around 1%.
+    R : float, optional
+        R_bolo, in ohm
+    delta_f : int, optionnal
+        Channel spacing in DfMUX, in Hz
+    L : float, optionnal
+         Resonator coil, in microH
     sigma : float, optional
         Width of the Gaussian used to generate the level of leakage,
         in percent. E.g. sigma=1.0 means the leakage coefficients will be
@@ -63,7 +72,10 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
         Modify bolo_data directly otherwise. Default is None.
     language : string, optional
         Language to perform computations to be chosen in ['python', 'fortran'].
-        Default is python. [fortran is very slow...]
+        Default is python
+    instrument_model : bool, optionnal
+        Set to True if you want to generate mu from instrument parameters given
+        in input
 
     Example
     ----------
@@ -95,8 +107,14 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
     For large number of bolometers per SQUID, you would prefer fortran
     to python to perform the loops. Choose python otherwise.
     """
+
+    ## Compute mu
+    if instrument_model == True:
+        mu = (R/(delta_f*2*np.pi*L*10**-6))**2
+    else:
+        mu = mu/100.
+
     ## Make mu and sigma unitless (user provides percentage)
-    mu = mu / 100.
     sigma = sigma / 100.
 
     combs = {}
@@ -121,7 +139,6 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
                     if separation_length == 0:
                         cross_matrix[i,j] = 1
                     elif separation_length > 0 and separation_length <= radius:
-                        cross_matrix[i,j]= cross_amp[i]/separation_length**beta
 
         tsout = np.dot(cross_matrix,tsout)
 
