@@ -143,15 +143,7 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
 
         tsout = np.dot(cross_matrix,tsout)
 
-    #
-    # if language == 'python':
-    #     for sq in combs:
-    #         for ch, i in combs[sq]:
-    #             for ch2, i2 in combs[sq]:
-    #                 separation_length = abs(ch - ch2)
-    #                 if separation_length > 0 and separation_length <= radius:
-    #                     tsout[i] += cross_amp[i2] / \
-    #                         separation_length**beta * tsout[i2]
+
 
     elif language == 'fortran':
         ## F2PY convention
