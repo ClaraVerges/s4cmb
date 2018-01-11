@@ -18,15 +18,16 @@ deg2rad = np.pi / 180.
 
 def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
                                   mu=-1., sigma = 1., R = 0.75, delta_f = 75000., L = 15.8 , radius=1, beta=2,
-                                  seed=5438765, new_array=None,
-                                  language='python',instrument_model=False):
+                                  seed=5438765, new_array=None, instrument_model=False):
     """
     Introduce leakage between neighboring bolometers within a SQUID.
     You have to provide the list of bolometers, to which SQUID they
     belong, and the index of bolometers within each SQUID.
 
-    You can provide either directly mu, the mean of the Gaussian (default)
-    OR R, delta_f and L to generate mu from instrument parameters and set instrument_model=True
+    You can provide either directly mu, the mean of the Gaussian for random
+    distribution of crosstalk amplitude (default)
+    OR R, delta_f and L to generate crosstalk amplitude from instrument
+    parameters and set instrument_model=True
 
     Parameters
     ----------
@@ -47,7 +48,7 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
     delta_f : int, optionnal
         Channel spacing in DfMUX, in Hz
     L : float, optionnal
-         Resonator coil, in microH
+         Resonator coil, in microHenry
     sigma : float, optional
         Width of the Gaussian used to generate the level of leakage,
         in percent. E.g. sigma=1.0 means the leakage coefficients will be
@@ -70,9 +71,6 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
     new_array : None or bolo_data-like array, optional
         If not None, return a new array of timestreams with the modifications.
         Modify bolo_data directly otherwise. Default is None.
-    language : string, optional
-        Language to perform computations to be chosen in ['python', 'fortran'].
-        Default is python
     instrument_model : bool, optionnal
         Set to True if you want to generate mu from instrument parameters given
         in input
@@ -108,14 +106,15 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
     to python to perform the loops. Choose python otherwise.
     """
 
-    ## Compute mu
+    ## Generate crosstalk amplitude values
     if instrument_model == True:
-        mu = (R/(delta_f*2*np.pi*L*10**-6))**2
+        amp = (R/(delta_f*2*np.pi*L*10**-6))**2
+        sigma = sigma / 100.
     else:
         mu = mu/100.
-
-    ## Make mu and sigma unitless (user provides percentage)
-    sigma = sigma / 100.
+        sigma = sigma / 100.
+        state = np.random.RandomState(seed)
+        cross_amp = state.normal(mu, sigma, len(bolo_data))
 
     combs = {}
     for bolo in range(len(bolo_data)):
@@ -125,36 +124,22 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
         combs[sq].append((bolo_ids[bolo], bolo))
 
     tsout = 0.0 + bolo_data
-    # How much to leak from one bolometer to its neighboring channels
-    state = np.random.RandomState(seed)
-    cross_amp = state.normal(mu, sigma, len(bolo_data))
-
+    
     cross_matrix=np.zeros((len(bolo_data),len(bolo_data)))
 
-    if language == 'python':
-        for sq in combs:
-            for ch, i in combs[sq]:
-                for ch2, j in combs[sq]:
-                    separation_length = abs(ch - ch2)
-                    if separation_length == 0:
-                        cross_matrix[i,j] = 1
-                    elif separation_length > 0 and separation_length <= radius:
+    for sq in combs:
+        for ch, i in combs[sq]:
+            for ch2, j in combs[sq]:
+                separation_length = abs(ch - ch2)
+                if separation_length == 0:
+                    cross_matrix[i,j] = 1
+                elif separation_length > 0 and separation_length <= radius:
+                    if instrument_model == False:
                         cross_matrix[i,j] = cross_amp[i]/(separation_length**beta)
+                    elif:
+                        cross_matrix[i,j]= amp/(separation_length**beta)
 
-        tsout = np.dot(cross_matrix,tsout)
-
-
-
-    elif language == 'fortran':
-        ## F2PY convention
-        tsout = np.array(tsout, order='F')
-        for sq in combs:
-            local_indices = np.array(combs[sq]).flatten()[:: 2]
-            global_indices = np.array(combs[sq]).flatten()[1:: 2]
-            systematics_f.inject_crosstalk_inside_squid_f(
-                tsout, local_indices, global_indices,
-                radius, cross_amp, beta,
-                len(local_indices), len(bolo_data), len(bolo_data[0]))
+    tsout = np.dot(cross_matrix,tsout)
 
     if new_array is not None:
         new_array[:] = tsout
