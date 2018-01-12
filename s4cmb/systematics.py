@@ -17,8 +17,10 @@ arcmin2rad = np.pi / 180. / 60.
 deg2rad = np.pi / 180.
 
 def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
-                                  mu=-1., sigma = 1., R = 0.75, delta_f = 75000., L = 15.8 , radius=1, beta=2,
-                                  seed=5438765, new_array=None, instrument_model=False):
+                                  mu=-1., sigma = 1.,
+                                  R = 0.75, delta_f = 75000., L = 15.8 ,
+                                  radius=1, beta=2,seed=5438765, new_array=None,
+                                  instrument_model=False,variability = False):
     """
     Introduce leakage between neighboring bolometers within a SQUID.
     You have to provide the list of bolometers, to which SQUID they
@@ -72,8 +74,11 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
         If not None, return a new array of timestreams with the modifications.
         Modify bolo_data directly otherwise. Default is None.
     instrument_model : bool, optionnal
-        Set to True if you want to generate mu from instrument parameters given
-        in input
+        Set to True if you want to generate crosstalk amplitude from instrument
+        parameters given in input
+    variability : bool, optionnal
+        if True, crosstalk amplitude will be randomized with width sigman
+        even with instrument_model = True
 
     Example
     ----------
@@ -102,20 +107,26 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
     ... #doctest: +NORMALIZE_WHITESPACE
     40.95 39.561
 
-    For large number of bolometers per SQUID, you would prefer fortran
-    to python to perform the loops. Choose python otherwise.
+
     """
 
     ## Generate crosstalk amplitude values
     if instrument_model == True:
         amp = (R/(delta_f*2*np.pi*L*10**-6))**2
-        sigma = sigma / 100.
+        if variability ==  True:
+            sigma = sigma / 100.
+            state = np.random.RandomState(seed)
+            cross_amp = state.normal(amp, sigma, len(bolo_data))
+        else:
+            cross_amp = amp*np.ones(len(bolo_data))
+
     else:
         mu = mu/100.
         sigma = sigma / 100.
         state = np.random.RandomState(seed)
         cross_amp = state.normal(mu, sigma, len(bolo_data))
 
+    ## Getting SQUIDs and bolo indices
     combs = {}
     for bolo in range(len(bolo_data)):
         sq = squid_ids[bolo]
@@ -124,7 +135,7 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
         combs[sq].append((bolo_ids[bolo], bolo))
 
     tsout = 0.0 + bolo_data
-    
+
     cross_matrix=np.zeros((len(bolo_data),len(bolo_data)))
 
     for sq in combs:
@@ -134,10 +145,7 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids,
                 if separation_length == 0:
                     cross_matrix[i,j] = 1
                 elif separation_length > 0 and separation_length <= radius:
-                    if instrument_model == False:
-                        cross_matrix[i,j] = cross_amp[i]/(separation_length**beta)
-                    elif:
-                        cross_matrix[i,j]= amp/(separation_length**beta)
+                    cross_matrix[i,j] = cross_amp[i]/(separation_length**beta)
 
     tsout = np.dot(cross_matrix,tsout)
 
