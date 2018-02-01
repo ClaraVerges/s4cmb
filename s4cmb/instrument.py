@@ -421,7 +421,8 @@ class Hardware():
                  fwhm=3.5, beam_seed=58347,
                  projected_fp_size=3.,
                  pm_name='5params',
-                 type_hwp='CRHWP', freq_hwp=2., angle_hwp=0., verbose=False):
+                 type_hwp='CRHWP', freq_hwp=2., angle_hwp=0.,
+                 min_readout_freq = 1, max_readout_freq =5,verbose=False):
         """
         This class creates the data used to model the instrument:
         * focal plane
@@ -465,6 +466,10 @@ class Hardware():
             If type_hwp=CRHWP, angle_hwp corresponds to the starting position.
             If type_hwp=stepped, angle_hwp corresponds to the step size
             which is updated after each scan (CES). [deg]
+        min_readout_freq = int, optionnal
+            Minimum frequency using in the dfmux readout, in MHz
+        max_readout_freq = int, optionnal
+            Maximum frequency using in the dfmux readout, in MHz
 
         Examples
         ----------
@@ -472,7 +477,8 @@ class Hardware():
         """
         self.focal_plane = FocalPlane(ncrate, ndfmux_per_crate,
                                       nsquid_per_mux, npair_per_squid,
-                                      fp_size, verbose)
+                                      fp_size, verbose, min_readout_freq,
+                                      max_readout_freq)
 
         self.beam_model = BeamModel(self.focal_plane, fwhm, beam_seed,
                                     projected_fp_size, verbose)
@@ -527,7 +533,8 @@ class FocalPlane():
     """ Class to handle the focal plane of the instrument. """
     def __init__(self,
                  ncrate=1, ndfmux_per_crate=1, nsquid_per_mux=1,
-                 npair_per_squid=4, fp_size=60., verbose=False):
+                 npair_per_squid=4, fp_size=60., verbose=False, min_readout_freq=1,
+                 max_readout_freq=5):
         """
         Initialise our focal plane.
 
@@ -561,6 +568,9 @@ class FocalPlane():
         self.ndfmux_per_crate = ndfmux_per_crate
         self.nsquid_per_mux = nsquid_per_mux
         self.npair_per_squid = npair_per_squid
+        self.min_readout_freq = min_readout_freq
+        self.max_readout_freq = max_readout_freq
+
 
         ## Total number of pairs and bolometers in the focal plane
         self.npair = self.ncrate * self.ndfmux_per_crate * \
@@ -576,7 +586,7 @@ class FocalPlane():
     def make_focal_plane(self):
         """
         Create the hardware map of the instrument,
-        taht is the focal plane geometry,
+        that is the focal plane geometry,
         the bolometers id, the wiring, and so on.
         The terminology used here is taken from the Polarbear experiment.
         The hierarchy is the following:
@@ -587,13 +597,15 @@ class FocalPlane():
         |  v        v        v          v
         |  id       id       id         id, xCoordinate, yCoordinate,
         |                               IndexInFocalPlane, polangle_orientation
-        |                               IndexInSquid.
+        |                               IndexInSquid, readout_frequency
         +--------------------------------------------------------------------+
 
         Examples
         ----------
         >>> fp = FocalPlane(verbose=True)
         Hardware map generated...
+
+        bolo_id now includes readout_frequency of the bolometer inside the SQUID
         """
         ## Retrieve coordinate of the pairs inside the focal plane
         # xcoord, ycoord = self.compute_pairs_coordinates(self.npair)
@@ -626,6 +638,15 @@ class FocalPlane():
                         self.squid_id.append('Cr{:03}Df{:03}Sq{:03}'.format(
                             crate, dfmux_index, squid_index))
 
+                        ## generating readout frequencies for the SQUID
+                        ## in logarithmic spacing
+                        readout_frequency=np.zeros(self.npair_per_squid*2)
+
+                        for i in range(len(readout_frequency)):
+                                readout_frequency[i]=(10**6)*(
+                                ((self.max_readout_freq/self.min_readout_freq)\
+                                **(i/self.npair_per_squid))*self.min_readout_freq)
+
                         for pair in range(self.npair_per_squid):
                             ## BOLOMETER
 
@@ -645,8 +666,9 @@ class FocalPlane():
                             self.bolo_index_in_squid.append(boloQ)
                             self.bolo_index_in_fp.append(bolo_index)
                             self.bolo_id.append(
-                                'Cr{:03}Df{:03}Sq{:03}Bo{:03}t'.format(
-                                    crate, dfmux_index, squid_index, boloQ))
+                                'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}t'.format(
+                                    crate, dfmux_index, squid_index,
+                                    readout_frequency[boloQ],boloQ))
                             self.bolo_xcoord.append(xcoord[pair_index])
                             self.bolo_ycoord.append(ycoord[pair_index])
 
@@ -678,13 +700,14 @@ class FocalPlane():
                             bolo_index += 1
 
                             ## Bottom pixel
-                            ## Top pixel
+
                             ## Position of the bolometer within the SQUID
                             self.bolo_index_in_squid.append(boloU)
                             self.bolo_index_in_fp.append(bolo_index)
                             self.bolo_id.append(
-                                'Cr{:03}Df{:03}Sq{:03}Bo{:03}b'.format(
-                                    crate, dfmux_index, squid_index, boloU))
+                                'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}b'.format(
+                                    crate, dfmux_index, squid_index,
+                                    readout_frequency[boloU], boloU))
                             self.bolo_xcoord.append(xcoord[pair_index])
                             self.bolo_ycoord.append(ycoord[pair_index])
 
@@ -745,6 +768,21 @@ class FocalPlane():
             int(comp.split(name)[-1][:3]) for comp in self.bolo_id]
 
         return indices
+
+    def get_readout_freq(self):
+        """
+        Returns readout frequencies for all bolometers
+
+        Returns
+        ----------
+        frequency : list of int
+            List containing the readout frequencies for all bolometers.
+
+        """
+
+        frequency = [fq.split('Fq')[-1][:9] for fq in self.bolo_id]
+
+        return frequency
 
 class BeamModel():
     """ Class to handle the beams of the detectors """
