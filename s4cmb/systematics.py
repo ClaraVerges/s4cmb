@@ -126,8 +126,8 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
 
     ## Generate crosstalk amplitude (from instrument model or randomly)
     if instrument_model == True:
-        amp_1 = R/(8*np.pi**2*L)
-        amp_2 = 1/(4*np.pi*L_ratio)
+        amp_1 = R/(2*L)
+        amp_2 = L_ratio/2
         if variability == True:
             sigma = sigma / 100.
             state = np.random.RandomState(seed)
