@@ -121,18 +121,20 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
             combs[sq] = []
         combs[sq].append((bolo_ids[bolo], bolo))
 
+
     ## Copying data
     tsout = 0.0 + bolo_data
 
     ## Generate crosstalk amplitude (from instrument model or randomly)
     if instrument_model == True:
-        amp_1 = R/(2*L*10**(-6))
-        amp_2 = L_ratio/2
+        amp_1 = R/(4*np.pi*L*10**(-6))
+        amp_2 = 1/(2*L_ratio)
         if variability == True:
-            sigma = sigma / 100.
+            sigma_1 = sigma*amp_1/ 100.
+            sigma_2 = sigma*amp_2/ 100.
             state = np.random.RandomState(seed)
-            cross_amp_1= state.normal(amp_1, sigma, len(bolo_data))
-            cross_amp_2= state.normal(amp_2, sigma, len(bolo_data))
+            cross_amp_1= state.normal(amp_1, sigma_1, len(bolo_data))
+            cross_amp_2= state.normal(amp_2, sigma_2, len(bolo_data))
         else:
             cross_amp_1 = amp_1*np.ones(len(bolo_data))
             cross_amp_2 = amp_2*np.ones(len(bolo_data))
@@ -156,8 +158,7 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
                     cross_matrix[i,j] = 1
                 elif separation_length > 0 and separation_length <= radius:
                     d = (((freq_ratio)**((separation_length)/n_mux))-1)
-                    cross_matrix[i][j]= (cross_amp_1[j]/(float(frequency[j])*d))**2 \
-                    + cross_amp_2[j]/d
+                    cross_matrix[i][j]= ((cross_amp_1[i]/(float(frequency[i])*d))**2 - cross_amp_2[i]/d)
 
     tsout = np.dot(cross_matrix,tsout)
 
