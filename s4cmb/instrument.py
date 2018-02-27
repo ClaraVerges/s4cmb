@@ -640,12 +640,12 @@ class FocalPlane():
 
                         ## generating readout frequencies for the SQUID
                         ## in logarithmic spacing
-                        readout_frequency=np.zeros(self.npair_per_squid*2)
+                        n_mux=2*self.npair_per_squid
+                        freq_ratio = self.max_readout_freq/self.min_readout_freq
+                        readout_frequency=np.zeros(n_mux)
 
                         for i in range(len(readout_frequency)):
-                                readout_frequency[i]=(10**6)*(
-                                ((self.max_readout_freq/self.min_readout_freq)\
-                                **(i/self.npair_per_squid))*self.min_readout_freq)
+                            readout_frequency[i]=((freq_ratio)**(i/(n_mux-1)))*self.min_readout_freq*10**6
 
                         for pair in range(self.npair_per_squid):
                             ## BOLOMETER
