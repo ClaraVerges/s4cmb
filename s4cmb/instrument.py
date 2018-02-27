@@ -175,7 +175,7 @@ def convert_pair_to_bolometer_position(xcoord_pairs, ycoord_pairs):
     return xcoord_bolometers, ycoord_bolometers
 
 def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
-                     fn_out='plot_hardware_map_test.png',
+                     frequency=None,nmux=0,  scale = None, fn_out='plot_hardware_map_test.png',
                      save_on_disk=True, display=False):
     """
     Show the focal plane of the instrument, split in two panels:
@@ -190,13 +190,21 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
     bolo_polangle : 1d array, optional
         Bolometer intrinsic polarisation angle orientation. If provided,
         it is used to color code the figure.
+    frequency : 1d array, optionnal
+        Readout frequencies of bolometers. If provided, it is used to color
+        code the figure
     fn_out : string, optional
         Name of the output file containing the plot of the focal plane.
         Provide the extension (format: png or pdf).
+    scale : string, optionnal
+        Choose if you want the color scale according to readout frequency or
+        polarisation angle.
     save_on_disk : bool
         If True, save the plot on disk.
     display : bool
         If True, show the plot.
+    nmux : int
+        Multiplexing factor (helps for generating the legend ;))
 
     Examples
     ---------
@@ -212,13 +220,19 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
     else:
         import matplotlib.pyplot as pl
 
-    if bolo_polangle is None:
-        bolo_polangle = np.ones_like(bolo_xcoord)
+    color = np.ones_like(bolo_xcoord)
 
-    fig, ax = pl.subplots(1, 2, figsize=(10, 5))
+    if scale == 'freq':
+        for i in range(len(frequency)):
+            frequency[i]=float(frequency[i])*10**(-6)
+        color = frequency
+    elif scale == 'pol':
+        color = bolo_polangle
+
+    fig, ax = pl.subplots(1, 2, figsize=(10, 7))
     ## Top pixel
-    ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
-                  c=bolo_polangle[::2], alpha=1, s=30, cmap=pl.cm.jet)
+    top = ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
+                  c=color[::2], alpha=1, s=30, cmap=pl.cm.jet)
     ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c='black', s=30, marker='|',
                   label='Top pixel', alpha=0.6)
@@ -227,14 +241,21 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
     ax[0].set_title('Top pixels')
 
     ## Bottom pixel
-    ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
-                  c=bolo_polangle[1::2], alpha=1, s=30, cmap=pl.cm.jet)
+    bottom = ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
+                           c=color[1::2], alpha=1, s=30, cmap=pl.cm.jet)
     ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
                   c='black', s=30, marker='_',
                   label='Bottom pixel', alpha=0.6)
     ax[1].set_ylabel('y position (cm)')
     ax[1].set_xlabel('x position (cm)')
     ax[1].set_title('Bottom pixels')
+
+    if scale == 'freq':
+        fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Readout frequency in Mhz')
+        fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal', label = 'Readout frequency in Mhz')
+    elif scale == 'pol':
+        fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Polarisation angle in deg')
+        fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal', label = 'Polarisation angle in deg')
 
     if save_on_disk:
         pl.savefig(fn_out)
@@ -645,7 +666,7 @@ class FocalPlane():
                         readout_frequency=np.zeros(n_mux)
 
                         for i in range(len(readout_frequency)):
-                            readout_frequency[i]=((freq_ratio)**(i/(n_mux-1)))*self.min_readout_freq*10**6
+                            readout_frequency[i]= ((freq_ratio)**(i/(n_mux-1)))*self.min_readout_freq*10**6
 
                         for pair in range(self.npair_per_squid):
                             ## BOLOMETER
