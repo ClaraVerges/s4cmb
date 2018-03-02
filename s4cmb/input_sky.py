@@ -639,5 +639,7 @@ def remove_test_data(has_id='_to_test_', silent=True):
 
 if __name__ == "__main__":
     import doctest
+    if np.__version__ >= "1.14.0":
+        np.set_printoptions(legacy="1.13")
     doctest.testmod()
     remove_test_data(has_id='_to_test_', silent=True)
