@@ -175,7 +175,7 @@ def convert_pair_to_bolometer_position(xcoord_pairs, ycoord_pairs):
     return xcoord_bolometers, ycoord_bolometers
 
 def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
-                     frequency=None,nmux=0,  scale = None, fn_out='plot_hardware_map_test.png',
+                     frequency=None, bolo_id = None, nmux=0,  scale = None, fn_out='plot_hardware_map_test.png',
                      save_on_disk=True, display=False):
     """
     Show the focal plane of the instrument, split in two panels:
@@ -192,13 +192,13 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
         it is used to color code the figure.
     frequency : 1d array, optionnal
         Readout frequencies of bolometers. If provided, it is used to color
-        code the figure
+        code the figure.
     fn_out : string, optional
         Name of the output file containing the plot of the focal plane.
         Provide the extension (format: png or pdf).
     scale : string, optionnal
         Choose if you want the color scale according to readout frequency or
-        polarisation angle.
+        polarisation angle. Default is None (no color code).
     save_on_disk : bool
         If True, save the plot on disk.
     display : bool
@@ -220,19 +220,24 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
     else:
         import matplotlib.pyplot as pl
 
-    color = np.ones_like(bolo_xcoord)
-
     if scale == 'freq':
         for i in range(len(frequency)):
             frequency[i]=float(frequency[i])*10**(-6)
         color = frequency
     elif scale == 'pol':
         color = bolo_polangle
+    else:
+        color = np.ones_like(bolo_xcoord)
 
-    fig, ax = pl.subplots(1, 2, figsize=(10, 7))
+    if bolo_id is not None:
+        labels = bolo_id
+        l = int(len(labels)/2)
+
+    fig, ax = pl.subplots(1, 2, figsize=(15, 15))
     ## Top pixel
     top = ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
-                  c=color[::2], alpha=1, s=30, cmap=pl.cm.jet)
+                  c=color[::2], alpha=1, s=30, cmap=pl.cm.jet,
+                  vmin = min(frequency), vmax = max(frequency))
     ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c='black', s=30, marker='|',
                   label='Top pixel', alpha=0.6)
@@ -240,15 +245,30 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
     ax[0].set_xlabel('x position (cm)')
     ax[0].set_title('Top pixels')
 
+    if bolo_id is not None:
+        labels_top = np.zeros(l)
+        for i in range(l):
+            labels_top[i]=labels[2*i]
+        for label, x, y in zip(labels_top, bolo_xcoord[::2], bolo_ycoord[::2]):
+            ax[0].annotate(int(label), xy=(x, y), xytext=(-5, 5),
+                textcoords='offset points', ha='right', va='bottom')
+
     ## Bottom pixel
     bottom = ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
-                           c=color[1::2], alpha=1, s=30, cmap=pl.cm.jet)
+                           c=color[1::2], alpha=1, s=30, cmap=pl.cm.jet,
+                           vmin = min(frequency), vmax = max(frequency))
     ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
                   c='black', s=30, marker='_',
                   label='Bottom pixel', alpha=0.6)
     ax[1].set_ylabel('y position (cm)')
     ax[1].set_xlabel('x position (cm)')
     ax[1].set_title('Bottom pixels')
+
+    if bolo_id is not None:
+        labels_bottom = labels_top + 1
+        for label, x, y in zip(labels_bottom, bolo_xcoord[::2], bolo_ycoord[::2]):
+            ax[1].annotate(int(label), xy=(x, y), xytext=(-5, 5),
+                textcoords='offset points', ha='right', va='bottom')
 
     if scale == 'freq':
         fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Readout frequency in Mhz')
