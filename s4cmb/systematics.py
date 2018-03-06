@@ -113,7 +113,7 @@ def get_crosstalk_matrix_inside_SQUID(ndet, squid_ids, bolo_ids, frequency,
         cross_amp_2 = state.normal(mu, sigma, ndet)
 
     ## Generate crosstalk matrix
-    cross_matrix=np.zeros((ndet,ndet)))
+    cross_matrix=np.zeros((ndet,ndet))
     freq_ratio = max_readout_freq/min_readout_freq
 
     for sq in combs:
@@ -234,7 +234,7 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
     40.95 39.561
     a
     """
-    
+
     tsout = 0.0 + bolo_data
     cross_matrix = get_crosstalk_matrix_inside_SQUID(
                         ndet = len(bolo_data), squid_ids = squid_ids,
