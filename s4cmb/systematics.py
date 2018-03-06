@@ -16,12 +16,125 @@ arcsecond2rad = np.pi / 180. / 3600.
 arcmin2rad = np.pi / 180. / 60.
 deg2rad = np.pi / 180.
 
+def get_crosstalk_matrix_inside_SQUID(ndet, squid_ids, bolo_ids, frequency,
+                                  min_readout_freq, max_readout_freq,n_mux,
+                                  mu=-1., sigma = 1.,
+                                  L_ratio = 150, L = 15.8, R = 0.75,
+                                  radius=1, beta=2, seed=5438765,
+                                  instrument_model=False,variability = False):
+
+    """
+    Generate the crosstalk matrix you will use to inject_crosstalk_inside_SQUID.
+
+    You can provide either directly mu, the mean of the Gaussian for random
+    distribution of crosstalk amplitude (default)
+    OR R, delta_f and L to generate crosstalk amplitude from instrument
+    parameters and set instrument_model=True
+
+    Parameters
+    ----------
+    ndet : int
+        Number of detectors in the focal plane
+    squid_ids : list of strings
+        Contains the SQUID id for each bolometer.
+        Should have the same shape[0] as bolo_data.
+    bolo_ids : list of strings
+        Contains the positions of bolometers within their SQUID.
+        Should have the same shape[0] as bolo_data.
+    frequency : list of strings
+        Contains the readout frequencies for all bolometers
+        Should have the same shape[0] as bolo_data
+    min_readout_freq : int
+        Minimum readout frequency, in MHz
+    max_readout_freq : int
+        Maximum readout frequency, in MHz
+    nmux : int
+        Multiplexing factor (number of detector per SQUID)
+    mu : float, optional
+        Mean of the Gaussian used to generate the level of leakage,
+        in percent. E.g. mu=1.0 means the leakage coefficients will be
+        centred around 1%.
+    sigma : float, optional
+        Width of the Gaussian used to generate the level of leakage,
+        in percent. E.g. sigma=1.0 means the leakage coefficients will be
+        of order X \pm 1%.
+    L_ratio : float, optionnal
+        Ratio of L_inductor/L_stray
+    L : float, optionnal
+        Value of L_inductor, in microHenry
+    R : float, optionnal
+        Value or R_bolometer, in Ohm
+    radius : int, optional
+        Controls the number of bolometers talking within a SQUID.
+        radius=n means bolometers [N-n, N-n+1, ..., N, ..., N+n-1, N+n]
+        will be crosstalking. `radius` must be at most equal to the number of
+        bolometers within a SQUID.
+    seed : int, optional
+        Control the random seed used to generate leakage coefficients..
+    instrument_model : bool, optionnal
+        Set to True if you want to generate crosstalk amplitude from instrument
+        parameters given in input
+    variability : bool, optionnal
+        if True, crosstalk amplitude will be randomized with width sigma,
+        even with instrument_model = True
+    save_matrix : bool, optionnal
+        Set to True if you want to output the crosstalk matrix (detector to
+        detector crosstalk amplitude for every detector)
+
+    """
+
+    ## Getting SQUIDs and bolo indices
+    combs = {}
+    for bolo in range(ndet):
+        sq = squid_ids[bolo]
+        if sq not in combs:
+            combs[sq] = []
+        combs[sq].append((bolo_ids[bolo], bolo))
+
+    ## Generate crosstalk amplitude (from instrument model or randomly)
+    if instrument_model == True:
+        amp_1 = R/(4*np.pi*L*10**(-6))
+        amp_2 = 1/(2*L_ratio)
+        if variability == True:
+            sigma_1 = sigma*amp_1/ 100.
+            sigma_2 = sigma*amp_2/ 100.
+            state = np.random.RandomState(seed)
+            cross_amp_1= state.normal(amp_1, sigma_1, ndet)
+            cross_amp_2= state.normal(amp_2, sigma_2, ndet)
+        else:
+            cross_amp_1 = amp_1*np.ones(ndet)
+            cross_amp_2 = amp_2*np.ones(ndet)
+
+    else:
+        mu = mu/100.
+        sigma = sigma / 100.
+        state = np.random.RandomState(seed)
+        cross_amp_1 = state.normal(mu, sigma, ndet)
+        cross_amp_2 = state.normal(mu, sigma, ndet)
+
+    ## Generate crosstalk matrix
+    cross_matrix=np.zeros((ndet,ndet)))
+    freq_ratio = max_readout_freq/min_readout_freq
+
+    for sq in combs:
+        for ch, i in combs[sq]:
+            for ch2, j in combs[sq]:
+                separation_length = abs(ch - ch2)
+                if separation_length == 0:
+                    cross_matrix[i,j] = 1
+                elif separation_length > 0 and separation_length <= radius:
+                    d = (((freq_ratio)**((separation_length)/n_mux))-1)
+                    cross_matrix[i][j]= ((cross_amp_1[i]/(float(frequency[i])*d))**2 - cross_amp_2[i]/d)
+
+    return cross_matrix
+
 def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
                                   min_readout_freq, max_readout_freq,n_mux,
                                   mu=-1., sigma = 1.,
                                   L_ratio = 150, L = 15.8, R = 0.75,
                                   radius=1, beta=2, seed=5438765, new_array=None,
                                   instrument_model=False,variability = False):
+
     """
     Introduce leakage between neighboring bolometers within a SQUID.
     You have to provide the list of bolometers, to which SQUID they
@@ -45,6 +158,12 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
     frequency : list of strings
         Contains the readout frequencies for all bolometers
         Should have the same shape[0] as bolo_data
+    min_readout_freq : int
+        Minimum readout frequency, in MHz
+    max_readout_freq : int
+        Maximum readout frequency, in MHz
+    nmux : int
+        Multiplexing factor (number of detector per SQUID)
     mu : float, optional
         Mean of the Gaussian used to generate the level of leakage,
         in percent. E.g. mu=1.0 means the leakage coefficients will be
@@ -83,6 +202,9 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
     variability : bool, optionnal
         if True, crosstalk amplitude will be randomized with width sigma,
         even with instrument_model = True
+    save_matrix : bool, optionnal
+        Set to True if you want to output the crosstalk matrix (detector to
+        detector crosstalk amplitude for every detector)
 
     Example
     ----------
@@ -110,55 +232,18 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
     >>> print(round(d[0][0], 3), round(d_new[0][0], 3))
     ... #doctest: +NORMALIZE_WHITESPACE
     40.95 39.561
-
-
+    a
     """
-    ## Getting SQUIDs and bolo indices
-    combs = {}
-    for bolo in range(len(bolo_data)):
-        sq = squid_ids[bolo]
-        if sq not in combs:
-            combs[sq] = []
-        combs[sq].append((bolo_ids[bolo], bolo))
-
-
-    ## Copying data
+    
     tsout = 0.0 + bolo_data
-
-    ## Generate crosstalk amplitude (from instrument model or randomly)
-    if instrument_model == True:
-        amp_1 = R/(4*np.pi*L*10**(-6))
-        amp_2 = 1/(2*L_ratio)
-        if variability == True:
-            sigma_1 = sigma*amp_1/ 100.
-            sigma_2 = sigma*amp_2/ 100.
-            state = np.random.RandomState(seed)
-            cross_amp_1= state.normal(amp_1, sigma_1, len(bolo_data))
-            cross_amp_2= state.normal(amp_2, sigma_2, len(bolo_data))
-        else:
-            cross_amp_1 = amp_1*np.ones(len(bolo_data))
-            cross_amp_2 = amp_2*np.ones(len(bolo_data))
-
-    else:
-        mu = mu/100.
-        sigma = sigma / 100.
-        state = np.random.RandomState(seed)
-        cross_amp_1 = state.normal(mu, sigma, len(bolo_data))
-        cross_amp_2 = state.normal(mu, sigma, len(bolo_data))
-
-    ## Generate crosstalk matrix
-    cross_matrix=np.zeros((len(bolo_data),len(bolo_data)))
-    freq_ratio = max_readout_freq/min_readout_freq
-
-    for sq in combs:
-        for ch, i in combs[sq]:
-            for ch2, j in combs[sq]:
-                separation_length = abs(ch - ch2)
-                if separation_length == 0:
-                    cross_matrix[i,j] = 1
-                elif separation_length > 0 and separation_length <= radius:
-                    d = (((freq_ratio)**((separation_length)/n_mux))-1)
-                    cross_matrix[i][j]= ((cross_amp_1[i]/(float(frequency[i])*d))**2 - cross_amp_2[i]/d)
+    cross_matrix = get_crosstalk_matrix_inside_SQUID(
+                        ndet = len(bolo_data), squid_ids = squid_ids,
+                        bolo_ids = bolo_ids, frequency = frequency,
+                        min_readout_freq = min_readout_freq,
+                        max_readout_freq = max_readout_freq, n_mux = n_mux,
+                        mu = mu , sigma =sigma, L_ratio = L_ratio, L = L, R = R,
+                        radius=radius, seed=seed, instrument_model=instrument_model,
+                        variability = variability)
 
     tsout = np.dot(cross_matrix,tsout)
 
@@ -166,6 +251,92 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
         new_array[:] = tsout
     else:
         bolo_data[:] = tsout
+
+def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, bolo_id = None, detector = 0,
+                        xtalk = None, fn_out='plot_hardware_map_test.png',
+                        save_on_disk=True, display=False):
+
+    """
+    Show crosstalk amplitude for one detector in the focal plane.
+    For now, only works with crosstalk inside SQUID
+
+    Parameters
+    ----------
+    bolo_xcoord : 1d array
+        Bolometers x coordinates in the focal plane.
+    bolo_ycoord : 1d array
+        Bolometers y coordinates in the focal plane.
+    bolo_id : 1d array, optionnal
+        Bolo id in focal plane.
+    fn_out : string, optional
+        Name of the output file containing the plot of the focal plane.
+        Provide the extension (format: png or pdf).
+    save_on_disk : bool
+        If True, save the plot on disk.
+    display : bool
+        If True, show the plot.
+    """
+    if not display:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as pl
+        pl.ioff()
+    else:
+        import matplotlib.pyplot as pl
+
+    if bolo_id is not None:
+        labels = bolo_id
+        l = int(len(labels)/2)
+
+    fig, ax = pl.subplots(1, 2, figsize=(15, 15))
+    ## Top pixel
+    top = ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
+                  c=color[::2], alpha=1, s=30, cmap=pl.cm.jet,
+                  vmin = min(frequency), vmax = max(frequency))
+    ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
+                  c='black', s=30, marker='|',
+                  label='Top pixel', alpha=0.6)
+    ax[0].set_ylabel('y position (cm)')
+    ax[0].set_xlabel('x position (cm)')
+    ax[0].set_title('Top pixels')
+
+    if bolo_id is not None:
+        labels_top = np.zeros(l)
+        for i in range(l):
+            labels_top[i]=labels[2*i]
+        for label, x, y in zip(labels_top, bolo_xcoord[::2], bolo_ycoord[::2]):
+            ax[0].annotate(int(label), xy=(x, y), xytext=(-5, 5),
+                textcoords='offset points', ha='right', va='bottom')
+
+    ## Bottom pixel
+    bottom = ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
+                           c=color[1::2], alpha=1, s=30, cmap=pl.cm.jet,
+                           vmin = min(frequency), vmax = max(frequency))
+    ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
+                  c='black', s=30, marker='_',
+                  label='Bottom pixel', alpha=0.6)
+    ax[1].set_ylabel('y position (cm)')
+    ax[1].set_xlabel('x position (cm)')
+    ax[1].set_title('Bottom pixels')
+
+    if bolo_id is not None:
+        labels_bottom = labels_top + 1
+        for label, x, y in zip(labels_bottom, bolo_xcoord[::2], bolo_ycoord[::2]):
+            ax[1].annotate(int(label), xy=(x, y), xytext=(-5, 5),
+                textcoords='offset points', ha='right', va='bottom')
+
+    if scale == 'freq':
+        fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Readout frequency in Mhz')
+        fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal', label = 'Readout frequency in Mhz')
+    elif scale == 'pol':
+        fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Polarisation angle in deg')
+        fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal', label = 'Polarisation angle in deg')
+
+    if save_on_disk:
+        pl.savefig(fn_out)
+        pl.clf()
+    if display:
+        pl.show()
 
 def inject_crosstalk_SQUID_to_SQUID(bolo_data, squid_ids, bolo_ids,
                                     mu=-3., sigma=1.,
