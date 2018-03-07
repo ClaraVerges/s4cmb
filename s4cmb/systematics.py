@@ -252,8 +252,8 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
     else:
         bolo_data[:] = tsout
 
-def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, bolo_id = None, detector = 0,
-                        xtalk = None, fn_out='plot_hardware_map_test.png',
+def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
+                        bolo_id = None, fn_out='plot_hardware_map_test.png',
                         save_on_disk=True, display=False):
 
     """
@@ -266,6 +266,10 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, bolo_id = None, detector = 0,
         Bolometers x coordinates in the focal plane.
     bolo_ycoord : 1d array
         Bolometers y coordinates in the focal plane.
+    detector : int
+        Detector used as reference for crosstalk amplitude
+    xtalk : 2d array
+        Crosstalk matrix for all detectors
     bolo_id : 1d array, optionnal
         Bolo id in focal plane.
     fn_out : string, optional
@@ -288,11 +292,13 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, bolo_id = None, detector = 0,
         labels = bolo_id
         l = int(len(labels)/2)
 
+    color = xtalk[det,:]
+
     fig, ax = pl.subplots(1, 2, figsize=(15, 15))
     ## Top pixel
     top = ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c=color[::2], alpha=1, s=30, cmap=pl.cm.jet,
-                  vmin = min(frequency), vmax = max(frequency))
+                  vmin = min(color), vmax = max(color))
     ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c='black', s=30, marker='|',
                   label='Top pixel', alpha=0.6)
@@ -325,12 +331,8 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, bolo_id = None, detector = 0,
             ax[1].annotate(int(label), xy=(x, y), xytext=(-5, 5),
                 textcoords='offset points', ha='right', va='bottom')
 
-    if scale == 'freq':
-        fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Readout frequency in Mhz')
-        fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal', label = 'Readout frequency in Mhz')
-    elif scale == 'pol':
-        fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Polarisation angle in deg')
-        fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal', label = 'Polarisation angle in deg')
+    fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Crosstalk amplitude (arbitrary units )')
+    fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal', label = 'Crosstalk amplitude (arbitrary units)')
 
     if save_on_disk:
         pl.savefig(fn_out)

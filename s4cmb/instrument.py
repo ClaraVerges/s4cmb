@@ -175,7 +175,7 @@ def convert_pair_to_bolometer_position(xcoord_pairs, ycoord_pairs):
     return xcoord_bolometers, ycoord_bolometers
 
 def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
-                     frequency=None, bolo_id = None, nmux=0,  scale = None, fn_out='plot_hardware_map_test.png',
+                     frequency=None, bolo_id = None,  scale = None, fn_out='plot_hardware_map_test.png',
                      save_on_disk=True, display=False):
     """
     Show the focal plane of the instrument, split in two panels:
@@ -237,7 +237,7 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
     ## Top pixel
     top = ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c=color[::2], alpha=1, s=30, cmap=pl.cm.jet,
-                  vmin = min(frequency), vmax = max(frequency))
+                  vmin = min(color), vmax = max(color))
     ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c='black', s=30, marker='|',
                   label='Top pixel', alpha=0.6)
@@ -256,7 +256,7 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
     ## Bottom pixel
     bottom = ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
                            c=color[1::2], alpha=1, s=30, cmap=pl.cm.jet,
-                           vmin = min(frequency), vmax = max(frequency))
+                           vmin = min(color), vmax = max(color))
     ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
                   c='black', s=30, marker='_',
                   label='Bottom pixel', alpha=0.6)
