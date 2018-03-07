@@ -233,7 +233,7 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_polangle=None,
         labels = bolo_id
         l = int(len(labels)/2)
 
-    fig, ax = pl.subplots(1, 2, figsize=(15, 15))
+    fig, ax = pl.subplots(1, 2, figsize=(10, 7))
     ## Top pixel
     top = ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c=color[::2], alpha=1, s=30, cmap=pl.cm.jet,

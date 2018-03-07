@@ -48,7 +48,7 @@ def get_crosstalk_matrix_inside_SQUID(ndet, squid_ids, bolo_ids, frequency,
         Minimum readout frequency, in MHz
     max_readout_freq : int
         Maximum readout frequency, in MHz
-    nmux : int
+    n_mux : int
         Multiplexing factor (number of detector per SQUID)
     mu : float, optional
         Mean of the Gaussian used to generate the level of leakage,
@@ -162,7 +162,7 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
         Minimum readout frequency, in MHz
     max_readout_freq : int
         Maximum readout frequency, in MHz
-    nmux : int
+    n_mux : int
         Multiplexing factor (number of detector per SQUID)
     mu : float, optional
         Mean of the Gaussian used to generate the level of leakage,
@@ -292,9 +292,10 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
         labels = bolo_id
         l = int(len(labels)/2)
 
-    color = xtalk[det,:]
+    color = xtalk[detector,:]
+    color[detector] = 0
 
-    fig, ax = pl.subplots(1, 2, figsize=(15, 15))
+    fig, ax = pl.subplots(1, 2, figsize=(12, 7))
     ## Top pixel
     top = ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c=color[::2], alpha=1, s=30, cmap=pl.cm.jet,
@@ -302,6 +303,9 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
     ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
                   c='black', s=30, marker='|',
                   label='Top pixel', alpha=0.6)
+    if detector % 2 == 0:
+            ax[0].scatter(bolo_xcoord[detector], bolo_ycoord[detector],
+                          c='black', s=100, alpha=0.6)
     ax[0].set_ylabel('y position (cm)')
     ax[0].set_xlabel('x position (cm)')
     ax[0].set_title('Top pixels')
@@ -317,10 +321,13 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
     ## Bottom pixel
     bottom = ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
                            c=color[1::2], alpha=1, s=30, cmap=pl.cm.jet,
-                           vmin = min(frequency), vmax = max(frequency))
+                           vmin = min(color), vmax = max(color))
     ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
                   c='black', s=30, marker='_',
                   label='Bottom pixel', alpha=0.6)
+    if detector % 2 == 1:
+            ax[1].scatter(bolo_xcoord[detector], bolo_ycoord[detector],
+                          c='black', s=100, alpha=0.6)
     ax[1].set_ylabel('y position (cm)')
     ax[1].set_xlabel('x position (cm)')
     ax[1].set_title('Bottom pixels')
@@ -331,8 +338,10 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
             ax[1].annotate(int(label), xy=(x, y), xytext=(-5, 5),
                 textcoords='offset points', ha='right', va='bottom')
 
-    fig.colorbar(top, ax=ax[0],orientation = 'horizontal',label = 'Crosstalk amplitude (arbitrary units )')
-    fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal', label = 'Crosstalk amplitude (arbitrary units)')
+    fig.colorbar(top, ax=ax[0],orientation = 'horizontal',
+                label = 'Crosstalk amplitude for detector'+str(detector)+'(arbitrary units )')
+    fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal',
+                label = 'Crosstalk amplitude for detector' +str(detector)+'(arbitrary units )')
 
     if save_on_disk:
         pl.savefig(fn_out)
