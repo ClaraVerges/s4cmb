@@ -305,7 +305,7 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
                   label='Top pixel', alpha=0.6)
     if detector % 2 == 0:
             ax[0].scatter(bolo_xcoord[detector], bolo_ycoord[detector],
-                          c='black', s=100, alpha=0.6)
+                          c='black', s=100, alpha=1)
     ax[0].set_ylabel('y position (cm)')
     ax[0].set_xlabel('x position (cm)')
     ax[0].set_title('Top pixels')
@@ -339,9 +339,9 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
                 textcoords='offset points', ha='right', va='bottom')
 
     fig.colorbar(top, ax=ax[0],orientation = 'horizontal',
-                label = 'Crosstalk amplitude for detector'+str(detector)+'(arbitrary units )')
+                label = 'Crosstalk amplitude for detector '+str(detector)+'(arbitrary units )')
     fig.colorbar(bottom, ax=ax[1],orientation = 'horizontal',
-                label = 'Crosstalk amplitude for detector' +str(detector)+'(arbitrary units )')
+                label = 'Crosstalk amplitude for detector ' +str(detector)+'(arbitrary units )')
 
     if save_on_disk:
         pl.savefig(fn_out)
