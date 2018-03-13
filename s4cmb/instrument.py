@@ -131,7 +131,80 @@ def coordinates_on_grid(pix_size=None, row_size=None,
         (x2.flatten()[:max_points],
          y2.flatten()[:max_points]))
 
-    return coordinates
+    return(coordinates)
+
+def coordinates_hexagon(pix_size=None, row_size=None,
+                        nx=None, nx2=None,
+                        max_points=None):
+    """
+    Generate an hexagonal grid (from a square grid) to respect focal plane real geometry
+
+    Parameters
+    ----------
+    pix_size : float, optional
+        Size of each pixel. User should either provide
+        `pix_size` or `row_size` (but not both at the same time).
+    row_size : float, optional
+        Size of each row. User should either provide
+        `pix_size` or `row_size` (but not both at the same time).
+    nx : int, optional
+        Number of pixels per row/column. User should either provide
+        `nx` or `nx2` (but not both at the same time).
+    nx2 : int, optional
+        Total number of pixels in the array. User should either provide
+        `nx` or `nx2` (but not both at the same time).
+    max_points : int, optional
+        If nx2 is specified, `max_points` defines the maximum number of points
+        to return. If None, set to `nx2`.
+
+    Returns
+    ----------
+    coordinates : ndarray (2, nx[:max_points] * nx[:max_points])
+        x and y coordinates of the pixels.
+    """
+    if (nx is None and nx2 is None) or (nx is not None and nx2 is not None):
+        raise AssertionError('You should specify either the ' +
+                             'number of pixel per row column (nx), or ' +
+                             'the total number of point in the grid (nx2).\n')
+
+    if (pix_size is None and row_size is None) or \
+            (pix_size is not None and row_size is not None):
+        raise AssertionError('You should specify either the ' +
+                             'size of a pixel (pix_size), ' +
+                             'or the size of a row (row_size).\n')
+
+    if nx2 is not None:
+        ## Look for the closest number with square root being an integer
+        nx2_tmp = copy.copy(nx2)
+        while True:
+            nx = np.sqrt(nx2_tmp)
+            if int(nx) == nx:
+                nx = int(nx)
+                break
+            else:
+                nx2_tmp += 1
+    else:
+        nx2 = nx**2
+
+    nx2_hex = int(nx2/2)
+
+    if pix_size is not None:
+        coordinates_1 = coordinates_on_grid(pix_size = pix_size,nx2 = nx2_hex)
+        coordinates_2 = coordinates_on_grid(pix_size = pix_size,nx2 = nx2_hex)
+    else :
+        pix_size = row_size / nx
+        coordinates_1 = coordinates_on_grid(pix_size = pix_size,nx2 = nx2_hex)
+        coordinates_2 = coordinates_on_grid(pix_size = pix_size,nx2 = nx2_hex)
+
+    step_x = abs(coordinates_1[0,1]-coordinates_1[0,0])/2
+    step_y = step_x
+
+    coordinates_1[0,:] += step_x
+    coordinates_1[1,:] += step_y
+
+    coordinates = np.concatenate((coordinates_1,coordinates_2),axis = 1)
+    print(coordinates)
+    return(coordinates)
 
 def convert_pair_to_bolometer_position(xcoord_pairs, ycoord_pairs):
     """
@@ -649,9 +722,10 @@ class FocalPlane():
         bolo_id now includes readout_frequency of the bolometer inside the SQUID
         """
         ## Retrieve coordinate of the pairs inside the focal plane
-        # xcoord, ycoord = self.compute_pairs_coordinates(self.npair)
-        xcoord, ycoord = coordinates_on_grid(row_size=self.fp_size,
-                                             nx2=self.npair)
+        #xcoord, ycoord = self.compute_pairs_coordinates(self.npair)
+        xcoord, ycoord = coordinates_on_grid(row_size=self.fp_size, nx2=self.npair)
+        # xcoord, ycoord = coordinates_hexagon(row_size=self.fp_size,
+        #                                      nx2=self.npair)
 
         ## Initialise
         self.crate_id, self.dfmux_id = [], []
