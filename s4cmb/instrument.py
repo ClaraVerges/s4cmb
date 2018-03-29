@@ -15,6 +15,25 @@ import copy
 import glob
 import datetime
 import numpy as np
+from AnalysisBackend.misc import skyside_focalplane as ss
+import AnalysisBackend.misc.parse_flat_map as parsemap
+
+
+def get_coordinates_from_AB(hwmap):
+    hwmap = hwmap
+    xmlmap = parsemap.build_index_maps(hwmap)
+    arrayinfo = ss.get_design_info(xmlmap)
+     xpos_list = []
+     ypos_list = []
+
+    for key in arrayinfo.keys():
+         xpos = arrayinfo[key]['xpos_fp']
+         ypos = arrayinfo[key]['ypos_fp']
+         xpos_list.append(xpos)
+         ypos_list.append(ypos)
+
+    return(xpos_list,ypos_list)
+
 
 def coordinates_on_grid(pix_size=None, row_size=None,
                         nx=None, nx2=None,
@@ -723,9 +742,8 @@ class FocalPlane():
         """
         ## Retrieve coordinate of the pairs inside the focal plane
         #xcoord, ycoord = self.compute_pairs_coordinates(self.npair)
-        xcoord, ycoord = coordinates_on_grid(row_size=self.fp_size, nx2=self.npair)
-        # xcoord, ycoord = coordinates_hexagon(row_size=self.fp_size,
-        #                                      nx2=self.npair)
+        #xcoord, ycoord = coordinates_on_grid(row_size=self.fp_size, nx2=self.npair)
+        xcoord, ycoord = get_coordinates_from_AB('/global/cscratch1/sd/cverges/fp_files/20111212_1703.xml')
 
         ## Initialise
         self.crate_id, self.dfmux_id = [], []
