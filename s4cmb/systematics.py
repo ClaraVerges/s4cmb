@@ -8,6 +8,7 @@ from __future__ import division, absolute_import, print_function
 
 import numpy as np
 from scipy import signal
+import matplotlib.pyplot as pl
 
 from s4cmb.systematics_f import systematics_f
 from s4cmb.instrument import construct_beammap
@@ -18,7 +19,7 @@ deg2rad = np.pi / 180.
 
 def get_crosstalk_matrix_inside_SQUID(ndet, squid_ids, bolo_ids, frequency,
                                   min_readout_freq, max_readout_freq,n_mux,
-                                  mu=-1., sigma = 1.,
+                                  mu= 1., sigma = 1.,
                                   L_ratio = 150, L = 15.8, R = 0.75,
                                   radius=1, beta=2, seed=5438765,
                                   instrument_model=False,variability = False):
@@ -316,7 +317,7 @@ def get_crosstalk_matrix_SQUID_to_SQUID(ndet, squid_ids, bolo_ids,
                 ## Take all bolometers in that SQUID
                 for ch2, j in combs[sq2]:
                     cross_matrix[i][j] = cross_amp[i]/squid_attenuation
-                    
+
     return cross_matrix
 
 def inject_crosstalk_SQUID_to_SQUID(bolo_data, squid_ids, bolo_ids,
@@ -405,8 +406,10 @@ def inject_crosstalk_SQUID_to_SQUID(bolo_data, squid_ids, bolo_ids,
     else:
         bolo_data[:] = tsout
 
-def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
-                        bolo_id = None, fn_out='plot_hardware_map_test.png',
+def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk, bolo_id,
+                        bolo_index_in_fp = None, bolo_xcoord_dark = None,
+                        bolo_ycoord_dark = None,
+                        fn_out='plot_hardware_map_test.png',
                         save_on_disk=True, display=False):
 
     """
@@ -423,8 +426,14 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
         Detector used as reference for crosstalk amplitude
     xtalk : 2d array
         Crosstalk matrix for all detectors
+    bolo_id : 1d array
+        Bolometers id in the focal plane
     bolo_id : 1d array, optionnal
         Bolo id in focal plane.
+    bolo_xcoord_dark : 1d array, optional
+        Dark bolometers x coordinates in the focal plane.
+    bolo_ycoord_dark : 1d array.optional
+        Dark bolometers y coordinates in the focal plane.
     fn_out : string, optional
         Name of the output file containing the plot of the focal plane.
         Provide the extension (format: png or pdf).
@@ -433,15 +442,8 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
     display : bool
         If True, show the plot.
     """
-    if not display:
-        import matplotlib as mpl
-        mpl.use('Agg')
-        import matplotlib.pyplot as pl
-        pl.ioff()
-    else:
-        import matplotlib.pyplot as pl
 
-    if bolo_id is not None:
+    if bolo_index_in_fp is not None:
         labels = bolo_id
         l = int(len(labels)/2)
 
@@ -449,47 +451,42 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk,
     color[detector] = 0
 
     fig, ax = pl.subplots(1, 2, figsize=(12, 7))
-    ## Top pixel
-    top = ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
-                  c=color[::2], alpha=1, s=30, cmap=pl.cm.jet,
-                  vmin = min(color), vmax = max(color))
-    ax[0].scatter(bolo_xcoord[::2], bolo_ycoord[::2],
-                  c='black', s=30, marker='|',
-                  label='Top pixel', alpha=0.6)
-    if detector % 2 == 0:
-            ax[0].scatter(bolo_xcoord[detector], bolo_ycoord[detector],
-                          c='black', s=100, alpha=1)
-    ax[0].set_ylabel('y position (cm)')
-    ax[0].set_xlabel('x position (cm)')
-    ax[0].set_title('Top pixels')
 
-    if bolo_id is not None:
-        labels_top = np.zeros(l)
-        for i in range(l):
-            labels_top[i]=labels[2*i]
-        for label, x, y in zip(labels_top, bolo_xcoord[::2], bolo_ycoord[::2]):
-            ax[0].annotate(int(label), xy=(x, y), xytext=(-5, 5),
-                textcoords='offset points', ha='right', va='bottom')
+    for i in range(len(bolo_xcoord)):
+        if 't' in bolo_id[i]:
+            top = ax[0].scatter(bolo_xcoord[i], bolo_ycoord[i],
+                          c=color[i], alpha=1, s=30, cmap=pl.cm.jet,
+                          vmin = min(color), vmax = max(color))
+            ax[0].scatter(bolo_xcoord[i], bolo_ycoord[i],
+                          c='black', s=30, marker='|',
+                          label='Top pixel', alpha=0.6)
 
-    ## Bottom pixel
-    bottom = ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
-                           c=color[1::2], alpha=1, s=30, cmap=pl.cm.jet,
-                           vmin = min(color), vmax = max(color))
-    ax[1].scatter(bolo_xcoord[1::2], bolo_ycoord[1::2],
-                  c='black', s=30, marker='_',
-                  label='Bottom pixel', alpha=0.6)
-    if detector % 2 == 1:
-            ax[1].scatter(bolo_xcoord[detector], bolo_ycoord[detector],
-                          c='black', s=100, alpha=0.6)
-    ax[1].set_ylabel('y position (cm)')
-    ax[1].set_xlabel('x position (cm)')
-    ax[1].set_title('Bottom pixels')
+            if bolo_index_in_fp is not None:
+                ax[0].annotate(int(bolo_index_in_fp[i]), xy=(bolo_xcoord[i], bolo_ycoord[i]), xytext=(-5, 5),
+                    textcoords='offset points', ha='right', va='bottom')
 
-    if bolo_id is not None:
-        labels_bottom = labels_top + 1
-        for label, x, y in zip(labels_bottom, bolo_xcoord[::2], bolo_ycoord[::2]):
-            ax[1].annotate(int(label), xy=(x, y), xytext=(-5, 5),
-                textcoords='offset points', ha='right', va='bottom')
+        if 'b' in bolo_id[i]:
+            bottom = ax[1].scatter(bolo_xcoord[i], bolo_ycoord[i],
+                                   c=color[i], alpha=1, s=30, cmap=pl.cm.jet,
+                                   vmin = min(color), vmax = max(color))
+            ax[1].scatter(bolo_xcoord[i], bolo_ycoord[i],
+                          c='black', s=30, marker='_',
+                          label='Bottom pixel', alpha=0.6)
+
+            if bolo_index_in_fp is not None:
+                ax[1].annotate(int(bolo_index_in_fp[i]), xy=(bolo_xcoord[i], bolo_ycoord[i]), xytext=(-5, 5),
+                    textcoords='offset points', ha='right', va='bottom')
+
+        ax[0].set_ylabel('y position (m)')
+        ax[0].set_xlabel('x position (m)')
+        ax[0].set_title('Top pixels')
+        ax[1].set_ylabel('y position (m)')
+        ax[1].set_xlabel('x position (m)')
+        ax[1].set_title('Bottom pixels')
+
+    if bolo_xcoord_dark is not None and bolo_ycoord_dark is not None :
+        ax[0].scatter(bolo_xcoord_dark,bolo_ycoord_dark,c='black',s=100,marker = '.')
+        ax[1].scatter(bolo_xcoord_dark,bolo_ycoord_dark,c='black',s=100,marker = '.')
 
     fig.colorbar(top, ax=ax[0],orientation = 'horizontal',
                 label = 'Crosstalk amplitude for detector '+str(detector)+'(arbitrary units )')
