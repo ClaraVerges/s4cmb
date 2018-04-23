@@ -715,7 +715,7 @@ class FocalPlane():
         freq_ratio = self.max_readout_freq/self.min_readout_freq
         readout_frequency=np.zeros(n_mux)
         for i in range(len(readout_frequency)):
-            readout_frequency[i]= ((freq_ratio)**(i/(n_mux-1)))*self.min_readout_freq*10**6
+            readout_frequency[i]= (freq_ratio)**(i/(n_mux-1))*10**6
 
         ## Construct the hardware map
         ## Construct the hardware map
