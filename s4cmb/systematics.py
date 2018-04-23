@@ -124,14 +124,16 @@ def get_crosstalk_matrix_inside_SQUID(ndet, squid_ids, bolo_ids, frequency,
                 if separation_length == 0:
                     cross_matrix[i,j] = 1
                 elif separation_length > 0 and separation_length <= radius:
-                    d = (((freq_ratio)**((separation_length)/n_mux))-1)
-                    cross_matrix[i][j]= ((cross_amp_1[i]/(float(frequency[i])*d))**2 - cross_amp_2[i]/d)
+                    #d = (((freq_ratio)**((separation_length)/n_mux))-1)
+                    d = abs(frequency[i]-frequency[j])
+                    cross_matrix[i][j]= (cross_amp_1[i]/(d*10**6))**2 - cross_amp_2[i]*float(frequency[i])/d
 
     return cross_matrix
 
 def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
-                                  min_readout_freq, max_readout_freq,n_mux,
-                                  mu=-1., sigma = 1.,
+                                  cross_matrix = None,
+                                  min_readout_freq=5, max_readout_freq=1,n_mux=8,
+                                  mu=1., sigma = 1.,
                                   L_ratio = 150, L = 15.8, R = 0.75,
                                   radius=1, beta=2, seed=5438765, new_array=None,
                                   instrument_model=False,variability = False):
@@ -237,14 +239,16 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
     """
 
     tsout = 0.0 + bolo_data
-    cross_matrix = get_crosstalk_matrix_inside_SQUID(
-                        ndet = len(bolo_data), squid_ids = squid_ids,
-                        bolo_ids = bolo_ids, frequency = frequency,
-                        min_readout_freq = min_readout_freq,
-                        max_readout_freq = max_readout_freq, n_mux = n_mux,
-                        mu = mu , sigma =sigma, L_ratio = L_ratio, L = L, R = R,
-                        radius=radius, seed=seed, instrument_model=instrument_model,
-                        variability = variability)
+
+    if cross_matrix is None: #if you don't provide a mixing matrix, generate one from input parameters
+        cross_matrix = get_crosstalk_matrix_inside_SQUID(
+                            ndet = len(bolo_data), squid_ids = squid_ids,
+                            bolo_ids = bolo_ids, frequency = frequency,
+                            min_readout_freq = min_readout_freq,
+                            max_readout_freq = max_readout_freq, n_mux = n_mux,
+                            mu = mu , sigma =sigma, L_ratio = L_ratio, L = L, R = R,
+                            radius=radius, seed=seed, instrument_model=instrument_model,
+                            variability = variability)
 
     tsout = np.dot(cross_matrix,tsout)
 
@@ -254,9 +258,9 @@ def inject_crosstalk_inside_SQUID(bolo_data, squid_ids, bolo_ids, frequency,
         bolo_data[:] = tsout
 
 def get_crosstalk_matrix_SQUID_to_SQUID(ndet, squid_ids, bolo_ids,
-                                    mu=-3., sigma=1.,
-                                    squid_attenuation=100.,
-                                    seed=5438765):
+                                        mu=3., sigma=1.,
+                                        squid_attenuation=100.,
+                                        seed=5438765):
     """
     Generate the crosstalk matrix you will use to inject_crosstalk_SQUID_to_SQUID.
     You have to provide the list of bolometers, to which SQUID they
@@ -321,7 +325,8 @@ def get_crosstalk_matrix_SQUID_to_SQUID(ndet, squid_ids, bolo_ids,
     return cross_matrix
 
 def inject_crosstalk_SQUID_to_SQUID(bolo_data, squid_ids, bolo_ids,
-                                    mu=-3., sigma=1.,
+                                    cross_matrix = None,
+                                    mu=3., sigma=1.,
                                     squid_attenuation=100.,
                                     seed=5438765, new_array=None):
 
@@ -393,11 +398,12 @@ def inject_crosstalk_SQUID_to_SQUID(bolo_data, squid_ids, bolo_ids,
     """
     tsout = 0.0 + bolo_data
 
-    cross_matrix = get_crosstalk_matrix_inside_SQUID(
-                        ndet = len(bolo_data), squid_ids = squid_ids,
-                        bolo_ids = bolo_ids, frequency = frequency,
-                        mu = mu , sigma =sigma, squid_attenuation=squid_attenuation,
-                        seed=seed)
+    if cross_matrix is None : #if you don't provide a mixing matrix, generate one from input parameters
+        cross_matrix = get_crosstalk_matrix_SQUID_to_SQUID(
+                            ndet = len(bolo_data), squid_ids = squid_ids,
+                            bolo_ids = bolo_ids,
+                            mu = mu , sigma =sigma, squid_attenuation=squid_attenuation,
+                            seed=seed)
 
     tsout = np.dot(cross_matrix,tsout)
 
