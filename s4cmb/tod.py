@@ -260,6 +260,8 @@ class TimeOrderedDataPairDiff():
         else:
             self.noise_generator2 = None
 
+        print(self.array_noise_level)
+
     def get_angles(self):
         """
         Retrieve polarisation angles: intrinsic (focal plane) and HWP angles,
@@ -1549,7 +1551,6 @@ class WhiteNoiseGenerator():
         """
         state = np.random.RandomState(self.noise_seeds[ch])
         vec = state.normal(size=self.ntimesamples)
-
         return self.detector_noise_level * vec
 
 class CorrNoiseGenerator(WhiteNoiseGenerator):

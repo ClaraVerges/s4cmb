@@ -15,6 +15,7 @@ import copy
 import glob
 import datetime
 import numpy as np
+import scipy.integrate as integrate
 
 def coordinates_on_grid(pix_size=None, row_size=None,
                         nx=None, nx2=None,
@@ -22,7 +23,6 @@ def coordinates_on_grid(pix_size=None, row_size=None,
     """
     Return the x and y coordinates of points on a grid.
     The grid is centered on (0, 0).
-
     Parameters
     ----------
     pix_size : float, optional
@@ -40,12 +40,10 @@ def coordinates_on_grid(pix_size=None, row_size=None,
     max_points : int, optional
         If nx2 is specified, `max_points` defines the maximum number of points
         to return. If None, set to `nx2`.
-
     Returns
     ----------
     coordinates : ndarray (2, nx[:max_points] * nx[:max_points])
         x and y coordinates of the pixels.
-
     Examples
     ----------
     Make a grid with 2 points per row, spaced by 1 unit
@@ -53,19 +51,16 @@ def coordinates_on_grid(pix_size=None, row_size=None,
     ... # doctest: +NORMALIZE_WHITESPACE
     array([[-0.5,  0.5, -0.5,  0.5],
            [-0.5, -0.5,  0.5,  0.5]])
-
     Same grid, but specifying the total number of points
     >>> coordinates_on_grid(pix_size=1., nx2=4)
     ... # doctest: +NORMALIZE_WHITESPACE
     array([[-0.5,  0.5, -0.5,  0.5],
            [-0.5, -0.5,  0.5,  0.5]])
-
     You can also specify the maximum number of points to return
     >>> coordinates_on_grid(pix_size=1., nx2=4, max_points=3)
     ... # doctest: +NORMALIZE_WHITESPACE
     array([[-0.5,  0.5, -0.5],
            [-0.5, -0.5,  0.5]])
-
     If you specify a total number of points which does not fit totally inside
     a squared grid, then it will return only the point you ask on a bigger grid
     Note that it works as if you would have specify max_points for a higher nx2
@@ -73,7 +68,6 @@ def coordinates_on_grid(pix_size=None, row_size=None,
     ... # doctest: +NORMALIZE_WHITESPACE
     array([[-0.5,  0.5, -0.5],
            [-0.5, -0.5,  0.5]])
-
     You should specify either the number of pixel per row column (nx),
     or the total number of point in the grid but not both at the same time:
     >>> coordinates_on_grid(pix_size=1., nx=2, nx2=4)
@@ -82,7 +76,6 @@ def coordinates_on_grid(pix_size=None, row_size=None,
       ...
     AssertionError: You should specify either the number of pixel
     per row column (nx), or the total number of point in the grid (nx2).
-
     Idem for pix_size and row_size
     >>> coordinates_on_grid(pix_size=1., row_size=4., nx=2)
     ... # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
@@ -128,8 +121,8 @@ def coordinates_on_grid(pix_size=None, row_size=None,
     x2, y2 = np.meshgrid(xs1, xs1)
 
     coordinates = np.array(
-        (x2.flatten()[:max_points],
-         y2.flatten()[:max_points]))
+        (x2.flatten()[:int(max_points)],
+         y2.flatten()[:int(max_points)]))
 
     return coordinates
 
@@ -612,7 +605,6 @@ class FocalPlane():
         self.min_readout_freq = min_readout_freq
         self.max_readout_freq = max_readout_freq
 
-
         ## Total number of pairs and bolometers in the focal plane
         self.npair = self.ncrate * self.ndfmux_per_crate * \
             self.nsquid_per_mux * self.npair_per_squid
@@ -649,10 +641,7 @@ class FocalPlane():
         bolo_id now includes readout_frequency of the bolometer inside the SQUID
         """
         ## Retrieve coordinate of the pairs inside the focal plane
-        # xcoord, ycoord = self.compute_pairs_coordinates(self.npair)
-        xcoord, ycoord = coordinates_on_grid(row_size=self.fp_size,
-                                             nx2=self.npair)
-
+        xcoord, ycoord = coordinates_on_grid(row_size=self.fp_size, nx2=self.npair)
         ## Initialise
         self.crate_id, self.dfmux_id = [], []
         self.squid_id, self.bolo_id = [], []
@@ -663,6 +652,7 @@ class FocalPlane():
         while max_hit is False:
             bolo_index = 0
             pair_index = 0
+            sense = 'A'
             squid_index = 0
             dfmux_index = 0
             for crate in range(self.ncrate):
@@ -687,10 +677,9 @@ class FocalPlane():
 
                         for i in range(len(readout_frequency)):
                             readout_frequency[i]= ((freq_ratio)**(i/(n_mux-1)))*self.min_readout_freq*10**6
-
+                        sense = 'A' # make sure that every squids starts with A
                         for pair in range(self.npair_per_squid):
                             ## BOLOMETER
-
                             ## Split Q/U
                             boloQ = 2*pair
                             boloU = 2*pair + 1
@@ -709,9 +698,11 @@ class FocalPlane():
                             self.bolo_id.append(
                                 'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}t'.format(
                                     crate, dfmux_index, squid_index,
-                                    readout_frequency[boloQ],boloQ))
+                                    readout_frequency[boloQ],boloQ)+str(sense))
+                            print(self.bolo_id)
                             self.bolo_xcoord.append(xcoord[pair_index])
                             self.bolo_ycoord.append(ycoord[pair_index])
+
 
                             ## Q/U pixels
                             # bolo in pairs are separated by 90 deg,
@@ -748,7 +739,7 @@ class FocalPlane():
                             self.bolo_id.append(
                                 'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}b'.format(
                                     crate, dfmux_index, squid_index,
-                                    readout_frequency[boloU], boloU))
+                                    readout_frequency[boloU], boloU)+str(sense))
                             self.bolo_xcoord.append(xcoord[pair_index])
                             self.bolo_ycoord.append(ycoord[pair_index])
 
@@ -760,6 +751,11 @@ class FocalPlane():
 
                             ## Move in pair space
                             pair_index += 1
+                            ## Switch sense for every pair
+                            if sense == 'A':
+                                sense = 'B'
+                            elif sense == 'B':
+                                sense = 'A'
 
                             ## Close the job if you hit the maximum number of
                             ## bolometers or pairs.
@@ -775,6 +771,7 @@ class FocalPlane():
                                 break
                         squid_index += 1
                     dfmux_index += 1
+
 
     def get_indices(self, name='Cr'):
         """

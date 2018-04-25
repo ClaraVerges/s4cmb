@@ -9,6 +9,7 @@ from __future__ import division, absolute_import, print_function
 import numpy as np
 from scipy import signal
 import matplotlib.pyplot as pl
+from scipy import integrate
 
 from s4cmb.systematics_f import systematics_f
 from s4cmb.instrument import construct_beammap
@@ -504,6 +505,40 @@ def show_xtalk_amplitude(bolo_xcoord, bolo_ycoord, detector, xtalk, bolo_id,
         pl.clf()
     if display:
         pl.show()
+
+
+def get_real_polangle(bolo_id,polangle,freq,bandpass):
+    '''
+    Returns real polarization angles including wobble
+
+    Parameters
+    ----------
+    bolo_id : array of id
+        Bolo id to determine sense A/B pixels
+    polangle : array of floats
+        Polarisation angle from hardware
+    freq : int
+        Frequency of the detectors, in GHz
+    bandpass : array of int
+        Bandpass of the detectors, in GHz.
+        Must have the same length as polangle
+    '''
+
+    bolo_polangle_new = []
+    wobble =  lambda x: 4.9*np.sin(np.log(12*x+4.7))
+    const = lambda x: 1
+
+    for i in range(len(polangle)):
+        lower_limit = freq - bandpass[i]/2
+        upper_limit = freq + bandpass[i]/2
+        wobble_angle = integrate.quad(wobble,lower_limit,upper_limit)[0]/integrate.quad(const,lower_limit,upper_limit)[0]
+        if "A" in bolo_id[i]:
+            new_angle = polangle[i] + wobble_angle
+        elif "B" in bolo_id[i]:
+            new_angle = polangle[i] - wobble_angle
+        bolo_polangle_new.append(new_angle)
+
+    return bolo_polangle_new
 
 def modify_beam_offsets(bolometer_xpos, bolometer_ypos,
                         mu_diffpointing=10., sigma_diffpointing=5., seed=5847):
