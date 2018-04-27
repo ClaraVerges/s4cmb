@@ -714,8 +714,15 @@ class FocalPlane():
         n_mux=2*self.npair_per_squid
         freq_ratio = self.max_readout_freq/self.min_readout_freq
         readout_frequency=np.zeros(n_mux)
-        for i in range(len(readout_frequency)):
+        for i in range(n_mux):
             readout_frequency[i]= (freq_ratio)**(i/(n_mux-1))*10**6
+
+        ##generating senses for the SQUID
+        sense = []
+        i = 0
+        while i < n_mux :
+            sense.extend(('A','A','B','B'))
+            i += 4
 
         ## Construct the hardware map
         ## Construct the hardware map
@@ -757,12 +764,12 @@ class FocalPlane():
                                     self.bolo_id.append(
                                         'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}t'.format(
                                             crate, dfmux_index, squid_index,
-                                            readout_frequency[bolo],bolo))
+                                            readout_frequency[bolo],bolo)+str(sense[bolo]))
                                 elif 'b' in boloid[bolo_index]:
                                     self.bolo_id.append(
                                         'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}b'.format(
                                             crate, dfmux_index, squid_index,
-                                            readout_frequency[bolo],bolo))
+                                            readout_frequency[bolo],bolo)+str(sense[bolo]))
 
                                 bolo_index += 1
                                 bolo_index_in_fp += 1
