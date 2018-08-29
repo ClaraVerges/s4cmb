@@ -1,7 +1,6 @@
 #!/usr/bin/python
 """
 Script to simulate the scan of a CMB experiment.
-
 Author: Julien Peloton, j.peloton@sussex.ac.uk
 """
 from __future__ import division, absolute_import, print_function
@@ -31,7 +30,6 @@ class ScanningStrategy():
         A scanning strategy consists in defining the site of observation
         on earth for which we will make the observation, the region
         of the sky to observe, and the schedule of observations.
-
         Parameters
         ----------
         nces : int, optional
@@ -67,7 +65,6 @@ class ScanningStrategy():
         verbose : bool
             If True, print out several messages to ease the debug.
             Default is False.
-
         """
         self.nces = nces
         self.start_date = start_date
@@ -98,7 +95,6 @@ class ScanningStrategy():
         Routine to define the site of observation on earth for which
         positions are to be computed. The location of the Polarbear telescope
         is entered as default.
-
         Parameters
         ----------
         telescope_longitude : str
@@ -107,21 +103,18 @@ class ScanningStrategy():
             Latitude (angle) of the telescope. String form: 0:00:00.0.
         telescope_elevation : float
             Height above sea level (in meter).
-
         Returns
         ----------
         location : Observer instance
             An `Observer` instance allows you to compute the positions of
             celestial bodies as seen from a particular latitude and longitude
             on the Earth's surface.
-
         Examples
         ----------
         >>> scan = ScanningStrategy()
         >>> telescope_location = scan.define_telescope_location()
         >>> telescope_location.elevation
         5200.0
-
         """
         location = ephem.Observer()
         location.long = telescope_longitude
@@ -135,7 +128,6 @@ class ScanningStrategy():
         Given a pre-defined scanning strategy,
         define the boundaries of the scan: elevation, azimuth, and time.
         For a custom usage (advanced users), modify this routine.
-
         Examples
         ----------
         >>> scan = ScanningStrategy(name_strategy='deep_patch')
@@ -143,7 +135,6 @@ class ScanningStrategy():
         [30.0, 45.5226, 47.7448, 49.967,
          52.1892, 54.4114, 56.6336, 58.8558,
          61.078, 63.3002, 65.5226, 35.2126]
-
         Only few scanning strategies are currently available:
         >>> scan = ScanningStrategy(name_strategy='shallow_patch')
         >>> scan = ScanningStrategy(name_strategy='small_aperture')
@@ -155,7 +146,6 @@ class ScanningStrategy():
         ValueError: Only name_strategy = deep_patch or shallow_patch or
         custom are currently available. For another usage (advanced users),
         modify this routine.
-
         >>> scan.allowed_scanning_strategies
         ['deep_patch', 'shallow_patch', 'small_aperture', 'custom']
         """
@@ -270,14 +260,12 @@ class ScanningStrategy():
     def run_one_scan(self, scan_file, scan_number):
         """
         Generate one observation (i.e. one CES) of the telescope.
-
         Parameters
         ----------
         scan_file : dictionary
             Empty dictionary which will contain the outputs of the scan.
         scan_number : int
             Index of the scan (between 0 and nces - 1).
-
         Returns
         ----------
         bool : bool
@@ -542,7 +530,6 @@ class ScanningStrategy():
     def run(self):
         """
         Generate all the observations (i.e. all CES) of the telescope.
-
         Examples
         ----------
         >>> scan = ScanningStrategy(sampling_freq=1., nces=2,
@@ -550,7 +537,6 @@ class ScanningStrategy():
         >>> scan.run()
         >>> print(scan.scan0['firstmjd'], scan.scan0['lastmjd'])
         56293.6202546 56293.8230093
-
         By default, the language used for the core computation is the Python.
         It can be quite slow for heavy configuration, and one can set up
         the language to fortran for speeding up the computation (x1000).
@@ -561,12 +547,10 @@ class ScanningStrategy():
         >>> scan.run()
         >>> print(round(scan.scan0['firstmjd'], 2))
         56293.37
-
         Note that you can create your own scanning strategy. First choose
         the custom ones (set everything to None):
         >>> scan = ScanningStrategy(sampling_freq=1., nces=2,
         ...     language='fortran', name_strategy='custom')
-
         And then define your own parameters. Example:
         >>> scan.nces = 1
         >>> scan.elevation = [30.]
@@ -575,7 +559,6 @@ class ScanningStrategy():
         >>> scan.begin_LST = ['17:00:00.00']
         >>> scan.end_LST = ['22:00:00.00']
         >>> scan.run()
-
         Note that you To create a scanning strategy within s4cmb,
         you need to specify either
         * Elevations + minimum and maximum azimuths (spatial bounds) +
@@ -583,7 +566,6 @@ class ScanningStrategy():
         * Elevations + minimum and maximum declinations +
             begining and end Right Ascensions (spatial & timing bounds) +
             orientations (east/west)
-
         """
         ## Initialise the date and loop over CESes
         self.telescope_location.date = self.start_date
@@ -603,7 +585,6 @@ class ScanningStrategy():
         Simple map-making: project time ordered data into sky maps for
         visualisation. It works only in pure python (i.e. if you set
         language='python' when initialising the scanning_strategy class).
-
         Parameters
         ----------
         nside : int
@@ -623,11 +604,9 @@ class ScanningStrategy():
         boost : int
             boost factor to artificially increase the number of hits.
             It doesn't change the shape of the survey (just the amplitude).
-
         Outputs
         ----------
             * nhit_loc: 1D array, sky map with cumulative hit counts
-
         Examples
         ----------
         >>> import matplotlib
@@ -635,7 +614,6 @@ class ScanningStrategy():
         >>> scan = ScanningStrategy(sampling_freq=1., nces=1)
         >>> scan.run()
         >>> scan.visualize_my_scan(512)
-
         """
         import pylab as pl
         if self.language != 'python':
@@ -692,7 +670,6 @@ class ScanningStrategy():
         """
         Wrapper around setattr function.
         Set a named attribute on an object.
-
         Parameters
         ----------
         name : string
@@ -709,7 +686,6 @@ def convolve_focalplane(bore_nhits, nbolos, fp_radius_amin, boost):
     if there were `nbolos`, and boosted).
     Original author: Neil Goeckner-Wald.
     Modifications by Julien Peloton.
-
     Parameters
     ----------
     bore_nhits : 1D array
@@ -721,20 +697,16 @@ def convolve_focalplane(bore_nhits, nbolos, fp_radius_amin, boost):
     boost : float
         boost factor to artificially increase the number of hits.
         It doesn't change the shape of the survey (just the amplitude).
-
     Returns
     ----------
     focalplane_nhits : 1D array
         Number of hits for the all the detectors.
-
     Examples
     ----------
     >>> bore_nhits = np.zeros(hp.nside2npix(128))
-
     ## Put a patch in the center
     >>> bore_nhits[hp.query_disc(128, hp.ang2vec(np.pi/2, 0.),
     ...     radius=10*np.pi/180.)] = 1.
-
     ## Increase the number of detector (x100) and make a boost (x10)
     >>> conv_bore_nhits = convolve_focalplane(bore_nhits, nbolos=100,
     ...     fp_radius_amin=180, boost=10)
@@ -792,7 +764,6 @@ def convolve_focalplane(bore_nhits, nbolos, fp_radius_amin, boost):
 def date_to_mjd(date):
     """
     Convert date in ephem.date format to MJD.
-
     Parameters
     ----------
     date : ephem.Date
@@ -803,12 +774,10 @@ def date_to_mjd(date):
         Run str() on this object to see the UTC date it represents.
         ...
         WTF?
-
     Returns
     ----------
     mjd : float
         Date in the format MJD.
-
     Examples
     ----------
     >>> e = ephem.Observer()
@@ -823,7 +792,6 @@ def date_to_mjd(date):
 def date_to_greg(date):
     """
     Convert date in ephem.date format to gregorian date.
-
     Parameters
     ----------
     date : ephem.Date
@@ -834,12 +802,10 @@ def date_to_greg(date):
         Run str() on this object to see the UTC date it represents.
         ...
         WTF?
-
     Returns
     ----------
     greg : string
         Gregorian date (format: YYYYMMDD_HHMMSS)
-
     Examples
     ----------
     >>> e = ephem.Observer()
@@ -861,17 +827,14 @@ def date_to_greg(date):
 def greg_to_mjd(greg):
     """
     Convert gregorian date into MJD.
-
     Parameters
     ----------
     greg : string
         Gregorian date (format: YYYYMMDD_HHMMSS)
-
     Returns
     ----------
     mjd : float
         Date in the format MJD.
-
     Examples
     ----------
     >>> greg = '19881103_000000'
@@ -895,17 +858,14 @@ def greg_to_mjd(greg):
 def mjd_to_greg(mjd):
     """
     Convert MJD into gregorian date.
-
     Parameters
     ----------
     mjd : float
         Date in the format MJD.
-
     Returns
     ----------
     greg : string
         Gregorian date (format: YYYYMMDD_HHMMSS)
-
     Examples
     ----------
     >>> mjd = greg_to_mjd('19881103_000000')

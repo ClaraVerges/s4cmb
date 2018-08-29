@@ -11,53 +11,58 @@ Author: Julien Peloton, j.peloton@sussex.ac.uk
 from __future__ import division, absolute_import, print_function
 
 import os
-path_to_AnalysisBackend = '/global/cscratch1/sd/cverges/software/'
-os.sys.path.insert(0, os.path.realpath(path_to_AnalysisBackend))
-
 import copy
 import glob
 import datetime
 import numpy as np
 import matplotlib.pyplot as pl
-from xml.dom.minidom import parseString
-from AnalysisBackend.misc import skyside_focalplane_clara as ss
-import AnalysisBackend.misc.parse_flat_map as parsemap
 
-def get_info_from_AB(hwmap):
+def get_info_from_file(hwmap):
     hwmap = hwmap
-    xmlmap = parsemap.build_index_maps(hwmap)
-    arrayinfo = ss.get_design_info(xmlmap)
+    arrayinfo = np.loadtxt(hwmap, delimiter=" ", dtype=[('bolo', int),
+		('xpos', float), ('ypos', float), ('polangle', float), ('crosspol', float), ('boloid', '|S10')])
     xpos_list = []
     ypos_list = []
     polangle_list=[]
     boloid_list=[]
+    D_list=[]
     for i in range(len(arrayinfo)):
         xpos = arrayinfo[i][1]
         ypos = arrayinfo[i][2]
         polangle = arrayinfo[i][3]
         boloid = arrayinfo[i][5]
         if xpos == 0 and ypos == 0 and polangle == 0 : #remove zeros
-             pass
+             D_list.append(i)
         else:
-            xpos_list.append(xpos)
-            ypos_list.append(ypos)
-            polangle_list.append(polangle)
-            boloid_list.append(boloid)
-    return (reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list))
+             xpos_list.append(xpos)
+             ypos_list.append(ypos)
+             polangle_list.append(polangle)
+             boloid_list.append(boloid)
+    result = reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list,D_list)
+    return (result)
 
 
-def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list):
+def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list,D_list):
     """Reorder lists elements so it matches top/bottom order of bolomerters
+    xpos_list: list
+        List of x positions
+    ypos_list: list
+        List of y positions
+    polangle_list: list
+        List of polarisation angle
+    boloid_list: list
+        List of boloid
     """
     sorted_xpos_list = []
     sorted_ypos_list = []
     sorted_polangle_list = []
     sorted_boloid_list = []
 
+    dark_bolo_list=[]
     full_list=list(zip(xpos_list,ypos_list,polangle_list,boloid_list)) #zip all info for all bolo
 
     n=0
-    while n < len(xpos_list): #for one squid
+    while n < len(xpos_list): #squid by squid
         t_list=[]
         b_list=[]
         d_list=[]
@@ -67,6 +72,7 @@ def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list):
             elif 'b' in full_list[i][3]:
                 b_list.append(full_list[i])
             elif 'd' in full_list[i][3]:
+                dark_bolo_list.append(i)
                 d_list.append(full_list[i])
         for bolo_t in t_list : #t first
             sorted_xpos_list.append(bolo_t[0])
@@ -90,10 +96,8 @@ def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list):
             sorted_polangle_list.append(bolo_d[2])
             sorted_boloid_list.append(bolo_d[3])
 
-        n += 8
-
-    return [sorted_xpos_list, sorted_ypos_list, sorted_polangle_list, sorted_boloid_list]
-
+        n += 8 #loop over squid
+    return [sorted_xpos_list, sorted_ypos_list, sorted_polangle_list, sorted_boloid_list,dark_bolo_list,D_list]
 
 def coordinates_on_grid(pix_size=None, row_size=None,
                         nx=None, nx2=None,
@@ -304,7 +308,7 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_id,
 
     if scale == 'freq':
         for i in range(len(frequency)):
-            frequency[i]=float(frequency[i])*10**(-6)
+            frequency[i]=float(frequency[i])#*10**(-6)
         color = frequency
     elif scale == 'pol':
         color = bolo_polangle
@@ -328,7 +332,7 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_id,
 
         if 'b' in bolo_id[i]:
             bottom = ax[1].scatter(bolo_xcoord[i], bolo_ycoord[i],
-                                   c=color[i]-color[i-1], alpha=1, s=30, cmap=pl.cm.jet,
+                                   c=color[i], alpha=1, s=30, cmap=pl.cm.jet,
                                    vmin = min(color), vmax = max(color))
             ax[1].scatter(bolo_xcoord[i], bolo_ycoord[i],
                           c='black', s=30, marker='_',
@@ -338,11 +342,11 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_id,
                 ax[1].annotate(int(bolo_index_in_fp[i]), xy=(bolo_xcoord[i], bolo_ycoord[i]), xytext=(-5, 5),
                     textcoords='offset points', ha='right', va='bottom')
 
-        ax[0].set_ylabel('y position (cm)')
-        ax[0].set_xlabel('x position (cm)')
+        ax[0].set_ylabel('y position (m)')
+        ax[0].set_xlabel('x position (m)')
         ax[0].set_title('Top pixels')
-        ax[1].set_ylabel('y position (cm)')
-        ax[1].set_xlabel('x position (cm)')
+        ax[1].set_ylabel('y position (m)')
+        ax[1].set_xlabel('x position (m)')
         ax[1].set_title('Bottom pixels')
 
     if bolo_xcoord_dark is not None and bolo_ycoord_dark is not None :
@@ -539,11 +543,11 @@ class Hardware():
                  ncrate=1, ndfmux_per_crate=1, nsquid_per_mux=1,
                  npair_per_squid=4, fp_size=60.,
                  fwhm=3.5, beam_seed=58347,
-                 projected_fp_size=2.3,
+                 projected_fp_size=3.,
                  pm_name='5params',
                  type_hwp='CRHWP', freq_hwp=2., angle_hwp=0.,
                  min_readout_freq = 1, max_readout_freq =5,verbose=False,
-                 hwmap = '/global/cscratch1/sd/cverges/fp_files/20140502_1153.xml'):
+                 hwmap = '/global/cscratch1/sd/cverges/fp_files/BeamParamCF_FocalPlane_Offsets.txt'):
         """
         This class creates the data used to model the instrument:
         * focal plane
@@ -657,8 +661,8 @@ class FocalPlane():
     def __init__(self,
                  ncrate=1, ndfmux_per_crate=1, nsquid_per_mux=1,
                  npair_per_squid=4, fp_size=60., verbose=False, min_readout_freq=0.3,
-                 max_readout_freq=1,
-                 hwmap = '/global/cscratch1/sd/cverges/fp_files/20111212_1703.xml'):
+                 max_readout_freq=1.,
+                 hwmap = '/global/cscratch1/sd/cverges/fp_files/BeamParamCF_FocalPlane_Offsets.txt'):
         """
         Initialise our focal plane.
 
@@ -696,18 +700,13 @@ class FocalPlane():
         """
 
         self.hwmap = hwmap
-        self.hardware_info = get_info_from_AB(self.hwmap)
-
-        file = open(self.hwmap,'r')
-        data = file.read()
-        file.close()
-        dom = parseString(data)
+        self.hardware_info = get_info_from_file(self.hwmap)
 
         ncrate = 1 #not counting crates because of issue with number of DfMuxBoard/crate
-        ndfmux_per_crate = int(len(dom.getElementsByTagName('DfMuxBoard'))) # total number of DfMux
-        nsquid_per_mux = int(len(dom.getElementsByTagName('Squid'))/ndfmux_per_crate)
-        npair_per_squid = int((len(dom.getElementsByTagName('Bolometer'))-len(dom.getElementsByTagName('Squid')))/(2*len(dom.getElementsByTagName('Squid'))))
-        #removing one dead channel per squid (labelled as D_)
+        ndfmux_per_crate = 42 # total number of DfMux
+        nsquid_per_mux = 4
+        npair_per_squid = 4
+
 
         self.ncrate = ncrate
         self.ndfmux_per_crate = ndfmux_per_crate
@@ -760,15 +759,14 @@ class FocalPlane():
         self.bolo_xcoord_dark, self.bolo_ycoord_dark = [],[]
         self.bolo_xcoord, self.bolo_ycoord, self.bolo_polangle = [], [], []
         self.readout_frequency = []
-        self.test=[]
 
         ## generating readout frequencies for the SQUID
         ## in logarithmic spacing
         n_mux=2*self.npair_per_squid
-        delta_f = (self.max_readout_freq - self.min_readout_freq)/(n_mux-1)
+        freq_ratio = self.max_readout_freq/self.min_readout_freq
         readout_frequency=np.zeros(n_mux)
         for i in range(n_mux):
-            readout_frequency[i]= (self.min_readout_freq + i*delta_f)*10**6
+            readout_frequency[i]=(freq_ratio)**(i/(n_mux-1))*self.min_readout_freq
 
         ##generating senses for the SQUID
         sense = []
@@ -777,6 +775,7 @@ class FocalPlane():
             sense.extend(('A','A','B','B'))
             i += 4
 
+        ## Construct the hardware map
         ## Construct the hardware map
         max_hit = False
         while max_hit is False:
@@ -812,16 +811,11 @@ class FocalPlane():
                                 self.readout_frequency.append(readout_frequency[bolo])
 
                                 if 't' in boloid[bolo_index]:
-                                    self.test.append(np.random.rand())
                                     self.bolo_id.append(
                                         'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}t'.format(
                                             crate, dfmux_index, squid_index,
                                             readout_frequency[bolo],bolo)+str(sense[bolo]))
                                 elif 'b' in boloid[bolo_index]:
-                                    if self.bolo_xcoord[bolo_index_in_fp] != self.bolo_xcoord[bolo_index_in_fp-1]:
-                                        print("Error")
-                                        print(boloid[bolo_index])
-                                    self.test.append(self.test[bolo_index_in_fp-1])
                                     self.bolo_id.append(
                                         'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}b'.format(
                                             crate, dfmux_index, squid_index,
@@ -845,9 +839,9 @@ class FocalPlane():
         self.nbolometer = len(self.bolo_id)
         self.npair = int((len(self.bolo_id))/2)
 
-        for i in range(len(self.bolo_xcoord)):
-            self.bolo_xcoord[i] = self.bolo_xcoord[i]*1000
-            self.bolo_ycoord[i] = self.bolo_ycoord[i]*1000
+        for i in range(len(self.bolo_xcoord)): #positions in cm
+            self.bolo_xcoord[i]=self.bolo_xcoord[i]*1000
+            self.bolo_ycoord[i]=self.bolo_ycoord[i]*1000
 
     def get_indices(self, name='Cr'):
         """

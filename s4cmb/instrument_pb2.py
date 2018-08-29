@@ -11,89 +11,21 @@ Author: Julien Peloton, j.peloton@sussex.ac.uk
 from __future__ import division, absolute_import, print_function
 
 import os
-path_to_AnalysisBackend = '/global/cscratch1/sd/cverges/software/'
-os.sys.path.insert(0, os.path.realpath(path_to_AnalysisBackend))
-
 import copy
 import glob
 import datetime
 import numpy as np
+import glob
 import matplotlib.pyplot as pl
-from xml.dom.minidom import parseString
-from AnalysisBackend.misc import skyside_focalplane_clara as ss
-import AnalysisBackend.misc.parse_flat_map as parsemap
-
-def get_info_from_AB(hwmap):
-    hwmap = hwmap
-    xmlmap = parsemap.build_index_maps(hwmap)
-    arrayinfo = ss.get_design_info(xmlmap)
-    xpos_list = []
-    ypos_list = []
-    polangle_list=[]
-    boloid_list=[]
-    for i in range(len(arrayinfo)):
-        xpos = arrayinfo[i][1]
-        ypos = arrayinfo[i][2]
-        polangle = arrayinfo[i][3]
-        boloid = arrayinfo[i][5]
-        if xpos == 0 and ypos == 0 and polangle == 0 : #remove zeros
-             pass
-        else:
-            xpos_list.append(xpos)
-            ypos_list.append(ypos)
-            polangle_list.append(polangle)
-            boloid_list.append(boloid)
-    return (reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list))
 
 
-def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list):
-    """Reorder lists elements so it matches top/bottom order of bolomerters
-    """
-    sorted_xpos_list = []
-    sorted_ypos_list = []
-    sorted_polangle_list = []
-    sorted_boloid_list = []
-
-    full_list=list(zip(xpos_list,ypos_list,polangle_list,boloid_list)) #zip all info for all bolo
-
-    n=0
-    while n < len(xpos_list): #for one squid
-        t_list=[]
-        b_list=[]
-        d_list=[]
-        for i in range(n,n+8): #sort by bolo type
-            if 't' in full_list[i][3]:
-                t_list.append(full_list[i])
-            elif 'b' in full_list[i][3]:
-                b_list.append(full_list[i])
-            elif 'd' in full_list[i][3]:
-                d_list.append(full_list[i])
-        for bolo_t in t_list : #t first
-            sorted_xpos_list.append(bolo_t[0])
-            sorted_ypos_list.append(bolo_t[1])
-            sorted_polangle_list.append(bolo_t[2])
-            sorted_boloid_list.append(bolo_t[3])
-            id_t=bolo_t[3][:-1] #bolo_t id
-            for bolo_b in b_list: #looking for corresponding bolo_b
-                id_b=bolo_b[3][:-1]
-                if id_t == id_b: #once you find it, you add it to the list
-                    sorted_xpos_list.append(bolo_b[0])
-                    sorted_ypos_list.append(bolo_b[1])
-                    sorted_polangle_list.append(bolo_b[2])
-                    sorted_boloid_list.append(bolo_b[3])
-
-
-        #dark bolo at the end
-        for bolo_d in d_list:
-            sorted_xpos_list.append(bolo_d[0])
-            sorted_ypos_list.append(bolo_d[1])
-            sorted_polangle_list.append(bolo_d[2])
-            sorted_boloid_list.append(bolo_d[3])
-
-        n += 8
-
-    return [sorted_xpos_list, sorted_ypos_list, sorted_polangle_list, sorted_boloid_list]
-
+def get_info_from_file(wiring_file):
+    zif_position, bolo_type, pixel_number, pixel_type, pixel_x, pixel_y = np.loadtxt(wiring_file, unpack=True, skiprows=1, dtype=str)
+    zif_position = np.asarray(zif_position, dtype=int) - 1 # make the counting start at 0
+    pixel_number = np.asarray(pixel_number, dtype=int)
+    pixel_x = np.asarray(pixel_x, dtype=float)
+    pixel_y = np.asarray(pixel_y, dtype=float)
+    return [zif_position, bolo_type, pixel_number, pixel_type, pixel_x, pixel_y]
 
 def coordinates_on_grid(pix_size=None, row_size=None,
                         nx=None, nx2=None,
@@ -316,7 +248,7 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_id,
     for i in range(len(bolo_xcoord)):
         if 't' in bolo_id[i]:
             top = ax[0].scatter(bolo_xcoord[i], bolo_ycoord[i],
-                          c=color[i], alpha=1, s=30, cmap=pl.cm.jet,
+                          c=color[i], alpha=1, s=20, cmap=pl.cm.jet,
                           vmin = min(color), vmax = max(color))
             ax[0].scatter(bolo_xcoord[i], bolo_ycoord[i],
                           c='black', s=30, marker='|',
@@ -328,7 +260,7 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_id,
 
         if 'b' in bolo_id[i]:
             bottom = ax[1].scatter(bolo_xcoord[i], bolo_ycoord[i],
-                                   c=color[i]-color[i-1], alpha=1, s=30, cmap=pl.cm.jet,
+                                   c=color[i], alpha=1, s=20, cmap=pl.cm.jet,
                                    vmin = min(color), vmax = max(color))
             ax[1].scatter(bolo_xcoord[i], bolo_ycoord[i],
                           c='black', s=30, marker='_',
@@ -338,11 +270,11 @@ def show_focal_plane(bolo_xcoord, bolo_ycoord, bolo_id,
                 ax[1].annotate(int(bolo_index_in_fp[i]), xy=(bolo_xcoord[i], bolo_ycoord[i]), xytext=(-5, 5),
                     textcoords='offset points', ha='right', va='bottom')
 
-        ax[0].set_ylabel('y position (cm)')
-        ax[0].set_xlabel('x position (cm)')
+        ax[0].set_ylabel('y position (m)')
+        ax[0].set_xlabel('x position (m)')
         ax[0].set_title('Top pixels')
-        ax[1].set_ylabel('y position (cm)')
-        ax[1].set_xlabel('x position (cm)')
+        ax[1].set_ylabel('y position (m)')
+        ax[1].set_xlabel('x position (m)')
         ax[1].set_title('Bottom pixels')
 
     if bolo_xcoord_dark is not None and bolo_ycoord_dark is not None :
@@ -537,13 +469,15 @@ class Hardware():
     """ Class to load all the hardware and models of the instrument in once """
     def __init__(self,
                  ncrate=1, ndfmux_per_crate=1, nsquid_per_mux=1,
-                 npair_per_squid=4, fp_size=60.,
-                 fwhm=3.5, beam_seed=58347,
-                 projected_fp_size=2.3,
+                 npair_per_squid=19, fp_size=60.,
+                 fwhm_90=3.5, fwhm_150 = 1.8, beam_seed=58347,
+                 projected_fp_size_90=3.,
+                 projected_fp_size_150 = 3.,
+                 shift_angle = 45.,
+                 obs_frequency = [90,150],
                  pm_name='5params',
-                 type_hwp='CRHWP', freq_hwp=2., angle_hwp=0.,
-                 min_readout_freq = 1, max_readout_freq =5,verbose=False,
-                 hwmap = '/global/cscratch1/sd/cverges/fp_files/20140502_1153.xml'):
+                 type_hwp='CRHWP', freq_hwp=2., angle_hwp=0., verbose=False,
+                 hw_directory = '/global/cscratch1/sd/cverges/physical_connections_pb2'):
         """
         This class creates the data used to model the instrument:
         * focal plane
@@ -563,16 +497,26 @@ class Hardware():
             Number of pair of bolometers per SQUID.
         fp_size : float, optional
             The size of the focal plane in cm. Default is 60 cm.
-        fwhm : float, optional
-            Full Width Half Maximum of the beam (in arcmin).
+        fwhm_90 : float, optional
+            Full Width Half Maximum of the beam (in arcmin) for 90 GHz channels.
+            Default = 3.5 arcmin.
+        fwhm_150 : float, optional
+            Full Width Half Maximum of the beam (in arcmin) for 150 GHz channels.
             Default = 3.5 arcmin.
         beam_seed : int
             Seed used to generate angle of rotation of beam axes.
             Default is 58347.
-        projected_fp_size : float, optional
-            Size of the focal plane on the sky (in degree). This has to
+        projected_fp_size_90 : float, optional
+            Size of the focal plane on the sky (in degree) for 90 GHz channels. This has to
             do with the size of the mirror and the beam size.
             Default = 3 degrees.
+        projected_fp_size_150 : float, optional
+            Size of the focal plane on the sky (in degree) for 150 GHz channels. This has to
+            do with the size of the mirror and the beam size.
+            Default = 3 degrees.
+        shift_angle : int, optional
+            Shift the polarisation angle with respect to the ones from the
+            first frequency channel.
         pm_name : string, optional
             The pointing model to load. Currently, only the five-parameter
             pointing model (Mangum 2001) is implemented (pm_name = 5params).
@@ -587,38 +531,41 @@ class Hardware():
             If type_hwp=CRHWP, angle_hwp corresponds to the starting position.
             If type_hwp=stepped, angle_hwp corresponds to the step size
             which is updated after each scan (CES). [deg]
-        min_readout_freq = int, optionnal
-            Minimum frequency using in the dfmux readout, in MHz
-        max_readout_freq = int, optionnal
-            Maximum frequency using in the dfmux readout, in MHz
-        hwmap : string
-            Path to hardware map as xml file for use with AB
+        hw_directory : string
+            Path to directory where PB2 files are stored
 
         Examples
         ----------
         >>> instrument = Hardware()
         """
-        self.focal_plane = FocalPlane(ncrate, ndfmux_per_crate,
-                                      nsquid_per_mux, npair_per_squid,
-                                      fp_size, verbose, min_readout_freq,
-                                      max_readout_freq, hwmap)
-
-        self.beam_model = BeamModel(self.focal_plane, fwhm, beam_seed,
-                                    projected_fp_size, verbose)
-
+        ## For both f focal planes
         self.pointing_model = PointingModel(pm_name)
 
         self.half_wave_plate = HalfWavePlate(type_hwp, freq_hwp, angle_hwp)
+        ## 90 GHz channels
+        self.focal_plane = FocalPlane(obs_frequency[0],ncrate,ndfmux_per_crate,
+                                      nsquid_per_mux, npair_per_squid,
+                                      fp_size, verbose, hw_directory)
 
-    def make_dichroic(self, fwhm=1.8, beam_seed=58347, projected_fp_size=3.,
-                      shift_angle=45):
+        self.beam_model = BeamModel(self.focal_plane, fwhm_90, beam_seed,
+                                    projected_fp_size_90, verbose)
+
+    def make_dichroic(self, ncrate=1, ndfmux_per_crate=1, nsquid_per_mux=1,
+    npair_per_squid=19, fp_size=60.,
+    fwhm_90=3.5, fwhm_150 = 1.8, beam_seed=58347,
+    projected_fp_size_90=3.,
+    projected_fp_size_150 = 3.,
+    shift_angle = 45.,
+    obs_frequency = [90,150],
+    pm_name='5params',
+    type_hwp='CRHWP', freq_hwp=2., angle_hwp=0., verbose=False,
+    hw_directory = '/global/cscratch1/sd/cverges/physical_connections_pb2'):
         """
         Add a layer of detectors on top of the existing ones
         to have dichroic detectors. The new detectors will sit on top of the
         existing ones (that is same number and same location on the focal
         plane). The only difference is the beam size for the moment (and the
         projected size of the fp on sky).
-
         Parameters
         ----------
         fwhm : float, optional
@@ -634,7 +581,6 @@ class Hardware():
         shift_angle : int, optional
             Shift the polarisation angle with respect to the ones from the
             first frequency channel.
-
         Examples
         ----------
         >>> instrument = Hardware()
@@ -642,23 +588,31 @@ class Hardware():
         >>> hasattr(instrument, 'focal_plane2')
         True
         """
-        self.focal_plane2 = copy.copy(self.focal_plane)
+
+        ## 150 GHz channels
+        self.focal_plane2 = FocalPlane(obs_frequency[1],ncrate, ndfmux_per_crate,
+                                      nsquid_per_mux, npair_per_squid,
+                                      fp_size, verbose, hw_directory)
 
         ## Shift the polarisation angles (and clip it btw 0 and 360 deg)
         self.focal_plane2.bolo_polangle = (
             np.array(self.focal_plane2.bolo_polangle) + shift_angle) % 360
 
-        self.beam_model2 = BeamModel(
-            self.focal_plane2, fwhm, beam_seed,
-            projected_fp_size)
+        self.beam_model2 = BeamModel(self.focal_plane2, fwhm_150, beam_seed,
+                                    projected_fp_size_150, verbose)
+
+        ## Make focal plane with all detectors and real hardware map
+        ## USE ONLY FOR CROSSTALK !!!!!
+        self.real_focal_plane=FocalPlane(None,ncrate, ndfmux_per_crate,
+                                      nsquid_per_mux, npair_per_squid,
+                                      fp_size, verbose, hw_directory)
 
 class FocalPlane():
     """ Class to handle the focal plane of the instrument. """
-    def __init__(self,
-                 ncrate=1, ndfmux_per_crate=1, nsquid_per_mux=1,
-                 npair_per_squid=4, fp_size=60., verbose=False, min_readout_freq=0.3,
-                 max_readout_freq=1,
-                 hwmap = '/global/cscratch1/sd/cverges/fp_files/20111212_1703.xml'):
+    def __init__(self, obs_frequency,
+                 ncrate=1, ndfmux_per_crate=1, nsquid_per_mux=30,
+                 npair_per_squid=19, fp_size=120., verbose=False,
+                 hw_directory = '/global/cscratch1/sd/cverges/physical_connections_pb2'):
         """
         Initialise our focal plane.
 
@@ -677,6 +631,8 @@ class FocalPlane():
         ----------
         ncrate : int
             Number of crate plate.
+        obs_frequency : int
+            90 or 150 GHz
         ndfmux_per_crate : int
             Number of MUX board per crate.
         nsquid_per_mux : int
@@ -687,41 +643,23 @@ class FocalPlane():
             The size of the focal plane in cm. Default is 60 cm.
         verbose : boolean, optional
             If True, print out a number of useful comments for verboseging.
-        min_readout_freq: int, optionnal
-            Minimum readout frequency
-        max_readout_freq: int, optionnal
-            Maximimum readout frequency
-        hwmap : string
-            Path to hardware map as xml file for use with AB
+        hw_directory : string
+            Path to directory where PB2 files are stored
         """
 
-        self.hwmap = hwmap
-        self.hardware_info = get_info_from_AB(self.hwmap)
+        self.hw_directory = hw_directory
 
-        file = open(self.hwmap,'r')
-        data = file.read()
-        file.close()
-        dom = parseString(data)
-
-        ncrate = 1 #not counting crates because of issue with number of DfMuxBoard/crate
-        ndfmux_per_crate = int(len(dom.getElementsByTagName('DfMuxBoard'))) # total number of DfMux
-        nsquid_per_mux = int(len(dom.getElementsByTagName('Squid'))/ndfmux_per_crate)
-        npair_per_squid = int((len(dom.getElementsByTagName('Bolometer'))-len(dom.getElementsByTagName('Squid')))/(2*len(dom.getElementsByTagName('Squid'))))
-        #removing one dead channel per squid (labelled as D_)
-
-        self.ncrate = ncrate
-        self.ndfmux_per_crate = ndfmux_per_crate
-        self.nsquid_per_mux = nsquid_per_mux
-        self.npair_per_squid = npair_per_squid
-        self.min_readout_freq = min_readout_freq
-        self.max_readout_freq = max_readout_freq
+        self.ncrate = 7
+        self.ndfmux_per_crate = 1 #not counting dfmux board for now
+        self.nsquid_per_crate = 30 # not sure about that
+        self.npair_per_squid = 19
 
         ## Total number of pairs and bolometers in the focal plane INCLUDING DARK channels
-        self.npair_all = int((len(self.hardware_info[0]))/2)
+        self.npair_all =  285 ##1240 #not sure about that #one wafer and one frequency
         self.nbolometer_all = 2*self.npair_all
 
         self.fp_size = fp_size
-
+        self.obs_frequency = obs_frequency
         self.verbose = verbose
 
         self.make_focal_plane()
@@ -750,104 +688,154 @@ class FocalPlane():
 
         bolo_id now includes readout_frequency of the bolometer inside the SQUID
         """
-        ## Retrieve coordinate of the pairs inside the focal plane
-        hardware_info = self.hardware_info
-        xcoord, ycoord, angle, boloid = hardware_info[0],hardware_info[1],hardware_info[2],hardware_info[3]
-        ## Initialise
-        self.crate_id, self.dfmux_id = [], []
+        ## frequency mapping from file for one SQUID
+        frequency, physical_order = np.loadtxt(self.hw_directory + '/PB2a_LC_design_frequencies.txt',
+                                               skiprows=4, unpack=True, usecols=(0,1))
+        freq_dict = dict(zip(physical_order, frequency))
+
+        readout_frequency = np.zeros(len(frequency), dtype = float)
+
+        for key in freq_dict:
+            readout_frequency[int(key)]=float(freq_dict[key])
+
+        ## polarization angle from file for all pixels (?)
+
+        self.crate_id = []
+        self.dfmux_id = []
         self.squid_id, self.bolo_id = [], []
         self.bolo_index_in_squid, self.bolo_index_in_fp = [], []
         self.bolo_xcoord_dark, self.bolo_ycoord_dark = [],[]
         self.bolo_xcoord, self.bolo_ycoord, self.bolo_polangle = [], [], []
         self.readout_frequency = []
-        self.test=[]
 
-        ## generating readout frequencies for the SQUID
-        ## in logarithmic spacing
-        n_mux=2*self.npair_per_squid
-        delta_f = (self.max_readout_freq - self.min_readout_freq)/(n_mux-1)
-        readout_frequency=np.zeros(n_mux)
-        for i in range(n_mux):
-            readout_frequency[i]= (self.min_readout_freq + i*delta_f)*10**6
 
-        ##generating senses for the SQUID
-        sense = []
-        i = 0
-        while i < n_mux :
-            sense.extend(('A','A','B','B'))
-            i += 4
+        wiring_dir = self.hw_directory + '/wiring_mask_A/'
 
-        ## Construct the hardware map
+        crate_offset_x=[0,0,109,109,0,-109,-109]
+        crate_offset_y=[0,125,63,-63,-125,-63,63]
+
         max_hit = False
         while max_hit is False:
             bolo_index = 0 #all bolometers including dark
             bolo_index_in_fp = 0 #only observing bolometers
             squid_index = 0
+
             dfmux_index = 0
+            crate_index = 0
+
             for crate in range(self.ncrate):
-                ## CRATE
-                self.crate_id.append('Cr{:03}'.format(crate))
 
-                for dfmux in range(self.ndfmux_per_crate):
-                    ## DFMUX
-                    self.dfmux_id.append('Cr{:03}Df{:03}'.format(
-                            crate, dfmux_index))
+                # polarization angles for one wafer
+                file_index = crate_index + 1
+                pixel, pol_angle = np.genfromtxt(open(self.hw_directory +'/Full_PB20.11.0'+str(file_index)+'_bolos.csv'),skip_header = 1, unpack = True, usecols = (3,8))
+                pol_dict = dict(zip(pixel, pol_angle))
+                pol_dict_final = pol_dict.copy()
 
-                    for squid in range(self.nsquid_per_mux):
-                        ## SQUID
-                        self.squid_id.append('Cr{:03}Df{:03}Sq{:03}'.format(
-                            crate, dfmux_index, squid_index))
+                for key in pol_dict :
+                    if pol_dict[key] == 0.0 :
+                        del(pol_dict_final[key])
 
-                        for bolo in range(2*self.npair_per_squid):
-                            if 'd' in boloid[bolo_index]: #dark channels
-                                self.bolo_xcoord_dark.append(xcoord[bolo_index])
-                                self.bolo_ycoord_dark.append(ycoord[bolo_index])
+                angle = np.zeros(self.nbolometer_all, dtype = int)
+
+                for key in pol_dict_final:
+                    angle[int(key)]=int(pol_dict_final[key])
+
+                self.crate_id.append('Cr{:03}'.format(crate_index))
+                self.dfmux_id.append('Cr{:03}Df{:03}'.format(crate_index, dfmux_index))
+
+                for filename in sorted(glob.glob(wiring_dir + '*.txt')):
+                    self.squid_id.append('Cr{:03}Df{:03}Sq{:03}'.format(
+                        crate_index, dfmux_index, squid_index))
+                    hardware_info = get_info_from_file(filename)
+                    zif_position = hardware_info[0]
+                    bolo_type = hardware_info[1]
+                    pixel_number = hardware_info[2]
+                    pixel_type = hardware_info[3]
+                    xcoord = hardware_info[4]
+                    ycoord = hardware_info[5]
+
+                    if self.obs_frequency is not None :
+                        for bolo in zif_position:
+                            if str(self.obs_frequency) not in bolo_type[bolo]: #on saute ceux qui n'ont pas la bonne frequence, elimine aussi les CalR
+                                pass
+                            else :
+                                if 'D' in bolo_type[bolo]: #dark channels
+                                    self.bolo_xcoord_dark.append(xcoord[bolo]+crate_offset_x[crate_index])
+                                    self.bolo_ycoord_dark.append(ycoord[bolo]+crate_offset_y[crate_index])
+                                    bolo_index += 1
+                                else:
+                                    self.bolo_index_in_squid.append(bolo)
+                                    self.bolo_index_in_fp.append(bolo_index_in_fp)
+                                    self.bolo_xcoord.append(xcoord[bolo]+crate_offset_x[crate_index])
+                                    self.bolo_ycoord.append(ycoord[bolo]+crate_offset_y[crate_index])
+                                    self.bolo_polangle.append(angle[pixel_number[bolo]])
+                                    self.readout_frequency.append(readout_frequency[bolo])
+
+                                    if 'T' in bolo_type[bolo]:
+                                        self.bolo_id.append(
+                                            'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}t'.format(
+                                                crate_index, dfmux_index, squid_index,
+                                                readout_frequency[bolo],bolo)+pixel_type[bolo])
+                                    elif 'B' in bolo_type[bolo]:
+                                        self.bolo_id.append(
+                                            'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}b'.format(
+                                                crate_index, dfmux_index, squid_index,
+                                                readout_frequency[bolo],bolo)+pixel_type[bolo])
+
+                                    bolo_index += 1
+                                    bolo_index_in_fp += 1
+
+                    # real focal plane with all bolometers for crosstalk simulations
+                    else :
+                        for bolo in zif_position:
+                            if 'D' in bolo_type[bolo]: #dark channels
+                                self.bolo_xcoord_dark.append(xcoord[bolo])
+                                self.bolo_ycoord_dark.append(ycoord[bolo])
+                                bolo_index += 1
+                            elif "R" in bolo_type[bolo]:
                                 bolo_index += 1
                             else:
                                 self.bolo_index_in_squid.append(bolo)
                                 self.bolo_index_in_fp.append(bolo_index_in_fp)
-                                self.bolo_xcoord.append(xcoord[bolo_index])
-                                self.bolo_ycoord.append(ycoord[bolo_index])
-                                self.bolo_polangle.append(angle[bolo_index])
+                                self.bolo_xcoord.append(xcoord[bolo]+crate_offset_x[crate_index])
+                                self.bolo_ycoord.append(ycoord[bolo]+crate_offset_y[crate_index])
+                                self.bolo_polangle.append(angle[pixel_number[bolo]])
                                 self.readout_frequency.append(readout_frequency[bolo])
 
-                                if 't' in boloid[bolo_index]:
-                                    self.test.append(np.random.rand())
+                                if 'T' in bolo_type[bolo]:
                                     self.bolo_id.append(
                                         'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}t'.format(
-                                            crate, dfmux_index, squid_index,
-                                            readout_frequency[bolo],bolo)+str(sense[bolo]))
-                                elif 'b' in boloid[bolo_index]:
-                                    if self.bolo_xcoord[bolo_index_in_fp] != self.bolo_xcoord[bolo_index_in_fp-1]:
-                                        print("Error")
-                                        print(boloid[bolo_index])
-                                    self.test.append(self.test[bolo_index_in_fp-1])
+                                            crate_index, dfmux_index, squid_index,
+                                            readout_frequency[bolo],bolo)+pixel_type[bolo])
+                                elif 'B' in bolo_type[bolo]:
                                     self.bolo_id.append(
                                         'Cr{:03}Df{:03}Sq{:03}Fq{:03}Bo{:03}b'.format(
-                                            crate, dfmux_index, squid_index,
-                                            readout_frequency[bolo],bolo)+str(sense[bolo]))
+                                            crate_index, dfmux_index, squid_index,
+                                            readout_frequency[bolo],bolo)+pixel_type[bolo])
 
                                 bolo_index += 1
                                 bolo_index_in_fp += 1
-                            ## Close the job if you hit the maximum number of
-                            ## bolometers or pairs.
-                            try:
-                                assert bolo_index < self.nbolometer_all, \
-                                    'Hardware map generated...'
-                            except AssertionError as e:
-                                if self.verbose:
-                                    print(str(e))
-                                max_hit = True
-                                break
-                        squid_index += 1
-                    dfmux_index += 1
+
+                    squid_index += 1
+
+                dfmux_index += 1
+                crate_index += 1
+
+
+            ## Close the job if you hit the maximum number of crates
+
+            try:
+                assert crate_index < self.ncrate, \
+                    'Hardware map generated...'
+            except AssertionError as e:
+                if self.verbose:
+                    print(str(e))
+                max_hit = True
+                break
+
         #Real number of bolo and pairs, WITHOUT DARK channels
         self.nbolometer = len(self.bolo_id)
         self.npair = int((len(self.bolo_id))/2)
-
-        for i in range(len(self.bolo_xcoord)):
-            self.bolo_xcoord[i] = self.bolo_xcoord[i]*1000
-            self.bolo_ycoord[i] = self.bolo_ycoord[i]*1000
 
     def get_indices(self, name='Cr'):
         """

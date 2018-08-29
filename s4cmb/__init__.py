@@ -1,4 +1,4 @@
-from s4cmb import instrument
+from s4cmb import instrument_pb1
 from s4cmb import scanning_strategy
 from s4cmb import input_sky
 from s4cmb import detector_pointing

@@ -120,7 +120,6 @@ class HealpixFitsMap():
                           "(.dat) containing lensed power spectra with " +
                           "order ell, TT, EE, BB, TE " +
                           "(maps will be created on-the-fly).")
-
         self.set_leakage_to_zero()
 
         if self.compute_derivatives:

@@ -168,7 +168,6 @@ class TimeOrderedDataPairDiff():
         self.get_angles()
 
         ## Position of bolometers in the focal plane
-        ## TODO move that elsewhere...
         self.ypos = self.hardware.beam_model.ypos
         self.xpos = self.hardware.beam_model.xpos
         self.xpos = self.xpos / np.cos(self.ypos)
@@ -790,6 +789,7 @@ class TimeOrderedDataPairDiff():
             noise = self.noise_generator.simulate_noise_one_detector(ch)
         else:
             noise = 0.0
+            #noise = [0.0,0.0]
 
         if self.noise_generator2 is not None:
             noise2 = self.noise_generator2.simulate_noise_one_detector(ch)
@@ -821,7 +821,8 @@ class TimeOrderedDataPairDiff():
                 np.sin(2 * pol_ang) + noise) * norm
 
             if self.mode == 'standard':
-                return ts1
+                return (ts1,np.std(noise))
+                #return (ts1,noise[1])
 
             elif self.mode == 'dichroic':
                 # For demodulation, HWP angles are not included at the level
@@ -1550,7 +1551,7 @@ class WhiteNoiseGenerator():
         state = np.random.RandomState(self.noise_seeds[ch])
         vec = state.normal(size=self.ntimesamples)
 
-        return self.detector_noise_level * vec
+        return self.detector_noise_level * vec #np.std(self.detector_noise_level*vec)
 
 class CorrNoiseGenerator(WhiteNoiseGenerator):
     """ """

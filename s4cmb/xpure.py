@@ -269,11 +269,11 @@ def create_batch(batch_file, name_out, params_s4cmb, params_xpure):
 
         print(' ', file=f)
         print('## Number of masks (put one if several maps but one common masks)', file=f)
-        print('NMASK_USER=1', file=f)
+        print('NMASK_USER=2', file=f) #1
 
         print(' ', file=f)
         print('## Number of maps (if > 1, will do the cross correlations)', file=f)
-        print('NMAPS_USER=1', file=f)
+        print('NMAPS_USER=2', file=f) #1
 
         print(' ', file=f)
         print('## Beam and bins', file=f)
@@ -293,18 +293,24 @@ def create_batch(batch_file, name_out, params_s4cmb, params_xpure):
 
         print(' ', file=f)
         print('#ENVIRONEMENT', file=f)
-        print('SCRATCH2=/global/cscratch1/sd/peloton', file=f)
+        print('SCRATCH2=/global/cscratch1/sd/cverges', file=f)
         if host == 'edison':
-            print('BINDIR=${HOME}/mapmaker/xpure/xpure/trunk/build/edison', file=f)
+            #print('BINDIR=${HOME}/mapmaker/xpure/xpure/trunk/build/edison', file=f)
+            print('BINDIR=/global/homes/p/peloton/mapmaker/xpure/xpure/trunk/build/$NERSC_HOST',file=f)
         elif host == 'cori':
-            print('BINDIR=${HOME}/mapmaker/xpure/xpure/trunk/build/cori', file=f)
-        print('THEORYDIR=${SCRATCH2}/s4cmb/additional_files', file=f)
+            ##print('BINDIR=${HOME}/mapmaker/xpure/xpure/trunk/build/cori', file=f)
+            print('BINDIR=/global/homes/p/peloton/mapmaker/xpure/xpure/trunk/build/$NERSC_HOST',file=f)
+        #print('THEORYDIR=${SCRATCH2}/s4cmb/examples/inifiles', file=f)
+        print('THEORYDIR=/global/cscratch1/sd/cverges', file =f)
         print('OUTPUTMLL=${SCRATCH2}/s4cmb/xpure/cls/${name}', file=f)
         print('OUTPUTCL=${SCRATCH2}/s4cmb/xpure/cls/${name}', file=f)
         print('mkdir -p ${OUTPUTMLL}', file=f)
         print('mkdir -p ${OUTPUTCL}', file=f)
-        print('MASKDIR=${SCRATCH2}/s4cmb/xpure/masks/${name}', file=f)
-        print('MAPDIR=${SCRATCH2}/s4cmb/xpure/maps/${name}', file=f)
+        ## for SO sim
+        print('MASKDIR=${SCRATCH2}/s4cmb-resources/Part2/xpure/masks/${name}', file=f)
+        print('MAPDIR=${SCRATCH2}/s4cmb-resources/Part2/xpure/maps/${name}', file=f)
+        # print('MASKDIR=${SCRATCH2}/s4cmb/xpure/masks/${name}', file=f)
+        # print('MAPDIR=${SCRATCH2}/s4cmb/xpure/maps/${name}', file=f)
 
         print(' ', file=f)
         print('####################################################', file=f)
@@ -551,7 +557,7 @@ def create_batch(batch_file, name_out, params_s4cmb, params_xpure):
         print('	cat >> xpure.par << _EOF_', file=f)
 
         print(' ', file=f)
-        print('bellfile${j} = ${THEORYDIR}/${BEAMFILE}', file=f)
+        ##print('bellfile${j} = ${THEORYDIR}/${BEAMFILE}', file=f)
         print('mapfile${j} = ${MAPDIR}/${MAPS[${j}]}', file=f)
 
         print(' ', file=f)

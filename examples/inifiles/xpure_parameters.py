@@ -32,5 +32,6 @@ xpure_mode = 1
 fast = 0
 
 ## Beam and bin file (just the name, not the full path)
-beam_file = "beam_freq150_large_v2.fits"
+#beam_file = "beam_freq150_large_v2.fits"
+beam_file = "s4binning.fits"
 bin_file = "bins_40to6143_step50_so.fits"
