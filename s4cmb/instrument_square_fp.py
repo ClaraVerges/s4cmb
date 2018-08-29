@@ -15,26 +15,7 @@ import copy
 import glob
 import datetime
 import numpy as np
-# from AnalysisBackend.misc import skyside_focalplane as ss
-# import AnalysisBackend.misc.parse_flat_map as parsemap
 import pylab as pl
-
-
-def get_coordinates_from_AB(hwmap):
-    hwmap = hwmap
-    xmlmap = parsemap.build_index_maps(hwmap)
-    arrayinfo = ss.get_design_info(xmlmap)
-    xpos_list = []
-    ypos_list = []
-
-    for key in arrayinfo.keys():
-         xpos = arrayinfo[key]['xpos_fp']
-         ypos = arrayinfo[key]['ypos_fp']
-         xpos_list.append(xpos)
-         ypos_list.append(ypos)
-
-    return(xpos_list,ypos_list)
-
 
 def coordinates_on_grid(pix_size=None, row_size=None,
                         nx=None, nx2=None,
@@ -684,21 +665,21 @@ class FocalPlane():
                 readout_frequency[i]= (self.min_readout_freq + i*delta_f)
 
 
-        if self.frequency_scaling == 0:
+        if self.frequency_scaling == 0: #log
             n_mux=2*self.npair_per_squid
             freq_ratio = self.max_readout_freq/self.min_readout_freq
             readout_frequency=np.zeros(n_mux)
             for i in range(n_mux):
                 readout_frequency[i]= (freq_ratio)**(i/(n_mux-1))
 
-        elif self.frequency_scaling == 1:
+        elif self.frequency_scaling == 1: #linear
             n_mux=2*self.npair_per_squid
             delta_f = (self.max_readout_freq - self.min_readout_freq)/n_mux
             readout_frequency=np.zeros(n_mux)
             for i in range(n_mux):
                 readout_frequency[i]= (self.min_readout_freq + i*delta_f)
 
-        elif self.frequency_scaling == 2:
+        elif self.frequency_scaling == 2: #linear, alternating so nearest neighbour don't have neighbouring frequencies
             n_mux=2*self.npair_per_squid
             delta_f = (self.max_readout_freq - self.min_readout_freq)/n_mux
             readout_frequency=np.zeros(n_mux)
@@ -826,7 +807,7 @@ class FocalPlane():
                                 max_hit = True
                                 break
                         squid_index += 1
-                    dfmux_index += 1      
+                    dfmux_index += 1
 
     def get_indices(self, name='Cr'):
         """

@@ -25,24 +25,22 @@ def get_info_from_file(hwmap):
     ypos_list = []
     polangle_list=[]
     boloid_list=[]
-    D_list=[]
     for i in range(len(arrayinfo)):
         xpos = arrayinfo[i][1]
         ypos = arrayinfo[i][2]
         polangle = arrayinfo[i][3]
         boloid = arrayinfo[i][5]
         if xpos == 0 and ypos == 0 and polangle == 0 : #remove zeros
-             D_list.append(i)
+             pass
         else:
              xpos_list.append(xpos)
              ypos_list.append(ypos)
              polangle_list.append(polangle)
              boloid_list.append(boloid)
-    result = reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list,D_list)
-    return (result)
+    return (reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list))
 
 
-def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list,D_list):
+def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list):
     """Reorder lists elements so it matches top/bottom order of bolomerters
     xpos_list: list
         List of x positions
@@ -58,7 +56,6 @@ def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list,D_list):
     sorted_polangle_list = []
     sorted_boloid_list = []
 
-    dark_bolo_list=[]
     full_list=list(zip(xpos_list,ypos_list,polangle_list,boloid_list)) #zip all info for all bolo
 
     n=0
@@ -72,7 +69,6 @@ def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list,D_list):
             elif 'b' in full_list[i][3]:
                 b_list.append(full_list[i])
             elif 'd' in full_list[i][3]:
-                dark_bolo_list.append(i)
                 d_list.append(full_list[i])
         for bolo_t in t_list : #t first
             sorted_xpos_list.append(bolo_t[0])
@@ -97,7 +93,8 @@ def reorder_list_pb1(xpos_list,ypos_list,polangle_list,boloid_list,D_list):
             sorted_boloid_list.append(bolo_d[3])
 
         n += 8 #loop over squid
-    return [sorted_xpos_list, sorted_ypos_list, sorted_polangle_list, sorted_boloid_list,dark_bolo_list,D_list]
+
+    return [sorted_xpos_list, sorted_ypos_list, sorted_polangle_list, sorted_boloid_list]
 
 def coordinates_on_grid(pix_size=None, row_size=None,
                         nx=None, nx2=None,
@@ -767,6 +764,7 @@ class FocalPlane():
         readout_frequency=np.zeros(n_mux)
         for i in range(n_mux):
             readout_frequency[i]=(freq_ratio)**(i/(n_mux-1))*self.min_readout_freq
+        print(readout_frequency)
 
         ##generating senses for the SQUID
         sense = []

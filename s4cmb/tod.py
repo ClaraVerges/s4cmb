@@ -821,8 +821,7 @@ class TimeOrderedDataPairDiff():
                 np.sin(2 * pol_ang) + noise) * norm
 
             if self.mode == 'standard':
-                return (ts1,np.std(noise))
-                #return (ts1,noise[1])
+                return ts1
 
             elif self.mode == 'dichroic':
                 # For demodulation, HWP angles are not included at the level
@@ -1551,7 +1550,7 @@ class WhiteNoiseGenerator():
         state = np.random.RandomState(self.noise_seeds[ch])
         vec = state.normal(size=self.ntimesamples)
 
-        return self.detector_noise_level * vec #np.std(self.detector_noise_level*vec)
+        return self.detector_noise_level * vec 
 
 class CorrNoiseGenerator(WhiteNoiseGenerator):
     """ """
