@@ -763,7 +763,7 @@ class FocalPlane():
         self.test=[]
 
         ## generating readout frequencies for the SQUID
-        ## in logarithmic spacing
+        ## in linear spacing
         n_mux=2*self.npair_per_squid
         delta_f = (self.max_readout_freq - self.min_readout_freq)/(n_mux-1)
         readout_frequency=np.zeros(n_mux)
